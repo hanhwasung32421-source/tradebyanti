@@ -7,9 +7,10 @@
         </NuxtLink>
 
         <nav class="flex items-center gap-2 text-sm">
-          <NuxtLink to="/exchange/BTCUSDT" class="rounded-md px-3 py-1 hover:bg-white/10">거래</NuxtLink>
-          <NuxtLink to="/profit" class="rounded-md px-3 py-1 hover:bg-white/10">수익인증</NuxtLink>
-          <NuxtLink to="/me" class="rounded-md px-3 py-1 hover:bg-white/10">내 계정</NuxtLink>
+          <NuxtLink to="/exchange/BTCUSDT" class="rounded-md px-3 py-1 hover:bg-white/10">선물거래</NuxtLink>
+          <NuxtLink to="/wallet" class="rounded-md px-3 py-1 hover:bg-white/10">내 지갑</NuxtLink>
+          <NuxtLink to="/invest/balance" class="rounded-md px-3 py-1 hover:bg-white/10">투자내역</NuxtLink>
+          <NuxtLink to="/support" class="rounded-md px-3 py-1 hover:bg-white/10">고객센터</NuxtLink>
           <NuxtLink to="/admin" class="rounded-md px-3 py-1 hover:bg-white/10">관리자</NuxtLink>
         </nav>
 

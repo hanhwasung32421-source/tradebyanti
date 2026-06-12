@@ -1,9 +1,12 @@
 function toInstId(symbol: string) {
-  // 현재는 BTCUSDT 같은 형태만 지원
+  // 선물(무기한) 기준으로 맞춤: *-USDT-SWAP
   const s = symbol.toUpperCase().replace('-', '').replace('/', '')
-  if (s === 'BTCUSDT') return 'BTC-USDT'
-  if (s === 'ETHUSDT') return 'ETH-USDT'
-  return 'BTC-USDT'
+  if (s.endsWith('SWAP')) return symbol.toUpperCase()
+  if (s === 'BTCUSDT') return 'BTC-USDT-SWAP'
+  if (s === 'ETHUSDT') return 'ETH-USDT-SWAP'
+  if (s === 'DOGEUSDT') return 'DOGE-USDT-SWAP'
+  // fallback
+  return 'BTC-USDT-SWAP'
 }
 
 export async function getOkxLastPrice(symbol: string) {
@@ -17,4 +20,3 @@ export async function getOkxLastPrice(symbol: string) {
   }
   return { instId, last }
 }
-

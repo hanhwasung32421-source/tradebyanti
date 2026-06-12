@@ -1,154 +1,308 @@
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 class="text-xl font-semibold">{{ symbol }}</h1>
-        <p class="mt-1 text-sm text-slate-400">
-          OKX 공개 시세 기반 (차트/호가) · 모의체결(가상 USDT)
-        </p>
+  <div class="space-y-4">
+    <!-- 상단 요약 -->
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-full bg-amber-500/20 ring-1 ring-amber-400/40" />
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold">{{ symbol }}</span>
+            <select
+              v-model="symbolSelect"
+              class="rounded-md bg-black/20 px-2 py-1 text-xs ring-1 ring-white/10"
+              @change="onChangeSymbol"
+            >
+              <option value="BTCUSDT">BTCUSDT</option>
+              <option value="DOGEUSDT">DOGEUSDT</option>
+              <option value="ETHUSDT">ETHUSDT</option>
+            </select>
+          </div>
+          <div class="font-mono text-2xl">{{ lastPrice ? fmtPrice(lastPrice) : '—' }}</div>
+        </div>
+        <div class="hidden sm:flex items-center gap-4 text-xs text-slate-300">
+          <div>24h 고가 <span class="font-mono text-slate-100">{{ high24 ? fmtPrice(high24) : '—' }}</span></div>
+          <div>24h 저가 <span class="font-mono text-slate-100">{{ low24 ? fmtPrice(low24) : '—' }}</span></div>
+          <div>24h 거래량 <span class="font-mono text-slate-100">{{ vol24 ? fmtNum(vol24) : '—' }}</span></div>
+        </div>
       </div>
-      <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-        <div class="text-xs text-slate-400">현재가</div>
-        <div class="mt-1 font-mono text-2xl">{{ lastPrice ? lastPrice.toFixed(2) : '—' }}</div>
+
+      <div class="flex items-center gap-4 text-xs text-slate-300">
+        <div class="hidden md:block">
+          펀딩(예시) <span class="font-mono text-rose-300">0.0027%</span>
+        </div>
+        <div class="hidden md:block">
+          카운트다운(예시) <span class="font-mono text-slate-100">01:45:32</span>
+        </div>
+        <div class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">
+          WS <span class="font-mono">{{ wsStatus || '—' }}</span>
+        </div>
       </div>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-3">
-      <section class="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4">
-        <div class="flex items-center justify-between">
-          <h2 class="font-semibold">차트</h2>
-          <div class="text-xs text-slate-400">간단 라인차트(틱 기반)</div>
+    <!-- 메인 영역 (차트 / 호가 / 주문하기) -->
+    <div class="flex flex-col gap-3 xl:flex-row">
+      <!-- 차트 -->
+      <section class="flex-1 rounded-xl border border-white/10 bg-white/5 p-3">
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-sm font-semibold">차트</div>
+          <div class="flex items-center gap-2 text-xs">
+            <select v-model="timeframe" class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">
+              <option value="1m">1분</option>
+              <option value="5m">5분</option>
+              <option value="15m">15분</option>
+            </select>
+            <button class="rounded-md bg-white/10 px-2 py-1 hover:bg-white/15" @click="reloadCandles">새로고침</button>
+          </div>
         </div>
-        <div ref="chartEl" class="mt-3 h-[360px] w-full overflow-hidden rounded-xl bg-black/40"></div>
+        <div ref="chartEl" class="mt-3 h-[520px] w-full overflow-hidden rounded-lg bg-black/40"></div>
       </section>
 
-      <section class="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <!-- 호가 -->
+      <section class="w-full rounded-xl border border-white/10 bg-white/5 p-3 xl:w-[360px]">
         <div class="flex items-center justify-between">
-          <h2 class="font-semibold">호가(상위 10)</h2>
+          <div class="text-sm font-semibold">호가</div>
           <button class="rounded-md bg-white/10 px-2 py-1 text-xs hover:bg-white/15" @click="reconnect">재연결</button>
         </div>
-        <div class="mt-3 grid grid-cols-2 gap-3 text-xs">
-          <div>
-            <div class="mb-2 text-slate-400">매도</div>
-            <div v-for="a in asks" :key="a[0]" class="flex justify-between font-mono">
-              <span class="text-rose-300">{{ a[0] }}</span>
-              <span class="text-slate-300">{{ a[1] }}</span>
-            </div>
-          </div>
-          <div>
-            <div class="mb-2 text-slate-400">매수</div>
-            <div v-for="b in bids" :key="b[0]" class="flex justify-between font-mono">
-              <span class="text-emerald-300">{{ b[0] }}</span>
-              <span class="text-slate-300">{{ b[1] }}</span>
-            </div>
+
+        <div class="mt-3 text-xs text-slate-400 grid grid-cols-3 gap-2">
+          <div class="text-right">가격(USDT)</div>
+          <div class="text-right">수량</div>
+          <div class="text-right">총 금액</div>
+        </div>
+
+        <!-- 매도 -->
+        <div class="mt-1 space-y-1">
+          <div
+            v-for="a in asks"
+            :key="a[0]"
+            class="grid grid-cols-3 gap-2 font-mono text-xs"
+          >
+            <div class="text-right text-rose-300">{{ a[0] }}</div>
+            <div class="text-right text-slate-200">{{ a[1] }}</div>
+            <div class="text-right text-slate-400">{{ fmtNum(Number(a[0]) * Number(a[1])) }}</div>
           </div>
         </div>
-        <p v-if="wsStatus" class="mt-3 text-xs text-slate-500">WS: {{ wsStatus }}</p>
+
+        <!-- 현재가 -->
+        <div class="my-2 rounded-md bg-black/30 px-3 py-2 text-center font-mono text-sm">
+          {{ lastPrice ? fmtPrice(lastPrice) : '—' }}
+        </div>
+
+        <!-- 매수 -->
+        <div class="space-y-1">
+          <div
+            v-for="b in bids"
+            :key="b[0]"
+            class="grid grid-cols-3 gap-2 font-mono text-xs"
+          >
+            <div class="text-right text-emerald-300">{{ b[0] }}</div>
+            <div class="text-right text-slate-200">{{ b[1] }}</div>
+            <div class="text-right text-slate-400">{{ fmtNum(Number(b[0]) * Number(b[1])) }}</div>
+          </div>
+        </div>
       </section>
-    </div>
 
-    <div class="grid gap-6 lg:grid-cols-3">
-      <section class="rounded-2xl border border-white/10 bg-white/5 p-5 lg:col-span-1">
-        <h2 class="font-semibold">모의체결</h2>
-        <p class="mt-1 text-sm text-slate-400">증거금(USDT) + 레버리지로 포지션을 오픈합니다.</p>
+      <!-- 주문하기 -->
+      <section class="w-full rounded-xl border border-white/10 bg-white/5 p-3 xl:w-[360px]">
+        <div class="flex items-center justify-between">
+          <div class="text-sm font-semibold">주문하기</div>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">격리</span>
+            <span class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">x{{ leverage }}</span>
+          </div>
+        </div>
 
-        <div v-if="!me" class="mt-4 rounded-xl bg-black/20 p-4 text-sm text-slate-300">
-          거래하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.
+        <div class="mt-3 flex gap-2 text-xs">
+          <button
+            class="flex-1 rounded-md px-3 py-2 ring-1"
+            :class="orderType === 'market' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+            @click="orderType = 'market'"
+            type="button"
+          >
+            시장가
+          </button>
+          <button
+            class="flex-1 rounded-md px-3 py-2 ring-1"
+            :class="orderType === 'limit' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+            @click="orderType = 'limit'"
+            type="button"
+          >
+            지정가
+          </button>
+          <button
+            class="flex-1 rounded-md px-3 py-2 ring-1"
+            :class="orderType === 'trigger' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+            @click="orderType = 'trigger'"
+            type="button"
+          >
+            예약
+          </button>
+        </div>
+
+        <div v-if="!me" class="mt-4 rounded-lg bg-black/20 p-3 text-sm text-slate-300">
+          주문하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.
         </div>
 
         <form v-else class="mt-4 space-y-3" @submit.prevent="openPosition">
-          <div class="grid grid-cols-2 gap-2">
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span>가격</span>
+              <span class="font-mono">USDT</span>
+            </div>
+            <input
+              class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10"
+              :value="orderType === 'market' ? '시장가' : (lastPrice ? fmtPrice(lastPrice) : '')"
+              disabled
+            />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span>증거금</span>
+              <span class="font-mono">USDT</span>
+            </div>
+            <input
+              v-model.number="margin"
+              type="number"
+              min="1"
+              step="1"
+              class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span>레버리지</span>
+              <span class="font-mono">x{{ leverage }}</span>
+            </div>
+            <input v-model.number="leverage" type="range" min="1" max="100" class="mt-2 w-full" />
+            <div class="mt-1 flex justify-between text-[10px] text-slate-500">
+              <span>1</span><span>25</span><span>50</span><span>75</span><span>100</span>
+            </div>
+          </div>
+
+          <div class="rounded-lg bg-black/20 p-3 text-xs text-slate-300">
+            <div class="flex justify-between">
+              <span>사용가능 금액</span><span class="font-mono">{{ balance.toFixed(2) }} USDT</span>
+            </div>
+            <div class="mt-2 flex justify-between">
+              <span>최대 볼륨(대략)</span>
+              <span class="font-mono">{{ maxVolumeText }}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
             <button
               type="button"
-              class="rounded-lg px-3 py-2 text-sm font-medium"
-              :class="side === 'long' ? 'bg-emerald-500/20 ring-1 ring-emerald-400' : 'bg-white/5 ring-1 ring-white/10 hover:bg-white/10'"
-              @click="side = 'long'"
+              class="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold hover:bg-emerald-500"
+              :disabled="loading"
+              @click="side = 'long'; openPosition()"
             >
-              롱
+              롱 오픈
             </button>
             <button
               type="button"
-              class="rounded-lg px-3 py-2 text-sm font-medium"
-              :class="side === 'short' ? 'bg-rose-500/20 ring-1 ring-rose-400' : 'bg-white/5 ring-1 ring-white/10 hover:bg-white/10'"
-              @click="side = 'short'"
+              class="rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold hover:bg-rose-500"
+              :disabled="loading"
+              @click="side = 'short'; openPosition()"
             >
-              숏
+              숏 오픈
             </button>
           </div>
-          <div>
-            <label class="text-sm text-slate-300">증거금 (USDT)</label>
-            <input v-model.number="margin" type="number" min="1" step="1" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label class="text-sm text-slate-300">레버리지</label>
-            <input v-model.number="leverage" type="number" min="1" max="100" step="1" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-indigo-500" />
-          </div>
-          <button class="w-full rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400" :disabled="loading">
-            포지션 오픈
-          </button>
+
           <p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
+          <p v-if="tradeMsg" class="text-sm text-emerald-300">{{ tradeMsg }}</p>
         </form>
-
-        <div v-if="me" class="mt-4 rounded-xl bg-black/20 p-4">
-          <div class="text-xs text-slate-400">가상 잔고</div>
-          <div class="mt-1 font-mono text-xl">{{ balance.toFixed(2) }} USDT</div>
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-white/10 bg-white/5 p-5 lg:col-span-2">
-        <div class="flex items-end justify-between gap-3">
-          <div>
-            <h2 class="font-semibold">오픈 포지션</h2>
-            <p class="mt-1 text-sm text-slate-400">청산 시 거래내역으로 저장되고 수익인증에서 카드 생성 가능</p>
-          </div>
-          <button class="rounded-md bg-white/10 px-3 py-2 text-sm hover:bg-white/15" @click="loadAccount">새로고침</button>
-        </div>
-        <div class="mt-3 space-y-2">
-          <div v-if="positions.length === 0" class="text-sm text-slate-400">오픈 포지션이 없습니다.</div>
-          <div v-for="p in positions" :key="p.id" class="rounded-xl bg-black/20 p-4 text-sm">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="font-medium">
-                #{{ p.id }} · {{ p.symbol }} · {{ p.side.toUpperCase() }} · x{{ p.leverage }}
-              </div>
-              <button class="rounded-md bg-amber-500/20 px-3 py-1 text-sm ring-1 ring-amber-400/50 hover:bg-amber-500/30" @click="closePosition(p.id)">
-                청산
-              </button>
-            </div>
-            <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-400">
-              <div>수량(BTC): <span class="font-mono text-slate-200">{{ Number(p.qty).toFixed(6) }}</span></div>
-              <div>진입가: <span class="font-mono text-slate-200">{{ Number(p.entry_price).toFixed(2) }}</span></div>
-              <div>증거금: <span class="font-mono text-slate-200">{{ Number(p.margin).toFixed(2) }}</span></div>
-              <div>생성: <span class="font-mono text-slate-200">{{ p.created_at.slice(0, 19) }}</span></div>
-            </div>
-          </div>
-        </div>
-        <p v-if="tradeMsg" class="mt-3 text-sm text-emerald-300">{{ tradeMsg }}</p>
       </section>
     </div>
+
+    <!-- 하단: 포지션 테이블 -->
+    <section class="rounded-xl border border-white/10 bg-white/5 p-3">
+      <div class="flex items-end justify-between gap-3">
+        <div>
+          <div class="text-sm font-semibold">포지션</div>
+          <div class="text-xs text-slate-400">오픈 포지션 / 청산(모의)</div>
+        </div>
+        <button class="rounded-md bg-white/10 px-3 py-1 text-xs hover:bg-white/15" @click="loadAccount">새로고침</button>
+      </div>
+
+      <div class="mt-3 overflow-auto">
+        <table class="w-full text-xs">
+          <thead class="text-slate-400">
+            <tr class="text-left">
+              <th class="py-2">코인</th>
+              <th class="py-2">포지션</th>
+              <th class="py-2">수량</th>
+              <th class="py-2">진입가격</th>
+              <th class="py-2">증거금</th>
+              <th class="py-2">Close</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="positions.length === 0" class="border-t border-white/10">
+              <td colspan="6" class="py-3 text-slate-400">데이터가 없습니다.</td>
+            </tr>
+            <tr v-for="p in positions" :key="p.id" class="border-t border-white/10">
+              <td class="py-2 font-mono">{{ p.symbol }}</td>
+              <td class="py-2" :class="p.side === 'long' ? 'text-emerald-300' : 'text-rose-300'">
+                {{ p.side.toUpperCase() }} x{{ p.leverage }}
+              </td>
+              <td class="py-2 font-mono">{{ Number(p.qty).toFixed(6) }}</td>
+              <td class="py-2 font-mono">{{ fmtPrice(Number(p.entry_price)) }}</td>
+              <td class="py-2 font-mono">{{ Number(p.margin).toFixed(2) }}</td>
+              <td class="py-2">
+                <button class="rounded-md bg-amber-500/20 px-2 py-1 ring-1 ring-amber-400/40 hover:bg-amber-500/30" @click="closePosition(p.id)">
+                  청산
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { createChart, type IChartApi, type ISeriesApi, type LineData } from 'lightweight-charts'
+import { createChart, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
 
 definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
+const router = useRouter()
 const symbol = computed(() => String(route.params.symbol || 'BTCUSDT').toUpperCase())
+const symbolSelect = ref(symbol.value)
+
+watch(
+  () => symbol.value,
+  (v) => {
+    symbolSelect.value = v
+  }
+)
+
+function onChangeSymbol() {
+  router.push(`/exchange/${symbolSelect.value}`)
+}
+
+const timeframe = ref<'1m' | '5m' | '15m'>('1m')
+const orderType = ref<'market' | 'limit' | 'trigger'>('market')
 
 const { me, refresh: refreshMe } = useMe()
 await refreshMe()
 
-const chartEl = ref<HTMLElement | null>(null)
-let chart: IChartApi | null = null
-let series: ISeriesApi<'Line'> | null = null
-
+// ticker
 const lastPrice = ref<number | null>(null)
+const high24 = ref<number | null>(null)
+const low24 = ref<number | null>(null)
+const vol24 = ref<number | null>(null)
+
+// books
 const asks = ref<[string, string][]>([])
 const bids = ref<[string, string][]>([])
 const wsStatus = ref('')
 let ws: WebSocket | null = null
 
+// trade panel
 const side = ref<'long' | 'short'>('long')
 const margin = ref<number>(100)
 const leverage = ref<number>(20)
@@ -156,14 +310,120 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const tradeMsg = ref<string | null>(null)
 
+// account
 const balance = ref(0)
 const positions = ref<any[]>([])
 
+// chart
+const chartEl = ref<HTMLElement | null>(null)
+let chart: IChartApi | null = null
+let candleSeries: ISeriesApi<'Candlestick'> | null = null
+let volumeSeries: ISeriesApi<'Histogram'> | null = null
+
+function fmtPrice(v: number) {
+  if (!Number.isFinite(v)) return '—'
+  // DOGE 같이 작은 값 대비
+  const digits = v < 1 ? 6 : 2
+  return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
+}
+function fmtNum(v: number) {
+  if (!Number.isFinite(v)) return '—'
+  return v.toLocaleString(undefined, { maximumFractionDigits: 2 })
+}
+
+const maxVolumeText = computed(() => {
+  if (!lastPrice.value) return '—'
+  const max = (balance.value * leverage.value) / lastPrice.value
+  return `${max.toFixed(6)}`
+})
+
 function toInstId(sym: string) {
   const s = sym.toUpperCase().replace('-', '').replace('/', '')
-  if (s === 'BTCUSDT') return 'BTC-USDT'
-  if (s === 'ETHUSDT') return 'ETH-USDT'
-  return 'BTC-USDT'
+  if (s === 'BTCUSDT') return 'BTC-USDT-SWAP'
+  if (s === 'ETHUSDT') return 'ETH-USDT-SWAP'
+  if (s === 'DOGEUSDT') return 'DOGE-USDT-SWAP'
+  return 'BTC-USDT-SWAP'
+}
+
+function initChart() {
+  if (!chartEl.value || chart) return
+  const rect = chartEl.value.getBoundingClientRect()
+  chart = createChart(chartEl.value, {
+    width: Math.max(300, Math.floor(rect.width)),
+    height: Math.max(400, Math.floor(rect.height)),
+    layout: { background: { color: 'transparent' }, textColor: '#cbd5e1' },
+    grid: { vertLines: { color: 'rgba(255,255,255,0.06)' }, horzLines: { color: 'rgba(255,255,255,0.06)' } },
+    rightPriceScale: { borderColor: 'rgba(255,255,255,0.12)' },
+    timeScale: { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true, secondsVisible: false }
+  })
+
+  candleSeries = chart.addCandlestickSeries({
+    upColor: '#10b981',
+    downColor: '#ef4444',
+    borderUpColor: '#10b981',
+    borderDownColor: '#ef4444',
+    wickUpColor: '#10b981',
+    wickDownColor: '#ef4444'
+  })
+
+  volumeSeries = chart.addHistogramSeries({
+    priceFormat: { type: 'volume' },
+    priceScaleId: ''
+  })
+  volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
+
+  // ResizeObserver
+  const ro = new ResizeObserver(() => {
+    if (!chartEl.value || !chart) return
+    const r = chartEl.value.getBoundingClientRect()
+    chart.applyOptions({ width: Math.floor(r.width), height: Math.floor(r.height) })
+  })
+  ro.observe(chartEl.value)
+}
+
+async function fetchCandles() {
+  const instId = toInstId(symbol.value)
+  const bar = timeframe.value
+  // OKX REST: /api/v5/market/candles
+  const res = await $fetch<any>('https://www.okx.com/api/v5/market/candles', {
+    query: { instId, bar, limit: 120 }
+  })
+  const rows = (res?.data || []) as string[][]
+  const candles: CandlestickData[] = []
+  const vols: HistogramData[] = []
+
+  // OKX는 최신이 앞에 오므로 reverse
+  rows
+    .slice()
+    .reverse()
+    .forEach((r) => {
+      const ts = Number(r[0])
+      const o = Number(r[1])
+      const h = Number(r[2])
+      const l = Number(r[3])
+      const c = Number(r[4])
+      const vol = Number(r[5] ?? 0)
+      const time = Math.floor(ts / 1000) as any
+      if ([o, h, l, c].some((x) => !Number.isFinite(x))) return
+      candles.push({ time, open: o, high: h, low: l, close: c })
+      vols.push({
+        time,
+        value: vol,
+        color: c >= o ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)'
+      })
+    })
+
+  candleSeries?.setData(candles)
+  volumeSeries?.setData(vols)
+  chart?.timeScale().fitContent()
+
+  if (candles.length) {
+    lastPrice.value = candles[candles.length - 1].close
+  }
+}
+
+async function reloadCandles() {
+  await fetchCandles().catch(() => {})
 }
 
 function connectWs() {
@@ -188,13 +448,8 @@ function connectWs() {
       })
     )
   }
-
-  ws.onclose = () => {
-    wsStatus.value = 'closed'
-  }
-  ws.onerror = () => {
-    wsStatus.value = 'error'
-  }
+  ws.onclose = () => (wsStatus.value = 'closed')
+  ws.onerror = () => (wsStatus.value = 'error')
 
   ws.onmessage = (ev) => {
     try {
@@ -205,11 +460,12 @@ function connectWs() {
 
       if (arg.channel === 'tickers') {
         const p = Number(data.last)
-        if (Number.isFinite(p)) {
-          lastPrice.value = p
-          pushChart(p)
-        }
+        if (Number.isFinite(p)) lastPrice.value = p
+        high24.value = Number(data.high24h ?? data.high24) || high24.value
+        low24.value = Number(data.low24h ?? data.low24) || low24.value
+        vol24.value = Number(data.vol24h ?? data.vol24) || vol24.value
       }
+
       if (arg.channel === 'books5') {
         const a = (data.asks || []).slice(0, 10).map((x: any[]) => [x[0], x[1]] as [string, string])
         const b = (data.bids || []).slice(0, 10).map((x: any[]) => [x[0], x[1]] as [string, string])
@@ -224,24 +480,6 @@ function connectWs() {
 
 function reconnect() {
   connectWs()
-}
-
-function initChart() {
-  if (!chartEl.value || chart) return
-  chart = createChart(chartEl.value, {
-    layout: { background: { color: 'transparent' }, textColor: '#cbd5e1' },
-    grid: { vertLines: { color: 'rgba(255,255,255,0.06)' }, horzLines: { color: 'rgba(255,255,255,0.06)' } },
-    rightPriceScale: { borderColor: 'rgba(255,255,255,0.12)' },
-    timeScale: { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true, secondsVisible: true }
-  })
-  series = chart.addLineSeries({ color: '#a5b4fc', lineWidth: 2 })
-}
-
-function pushChart(price: number) {
-  if (!series) return
-  const t = Math.floor(Date.now() / 1000)
-  const point: LineData = { time: t as any, value: price }
-  series.update(point)
 }
 
 async function loadAccount() {
@@ -281,8 +519,16 @@ async function closePosition(positionId: number) {
   }
 }
 
+watch([() => symbol.value, timeframe], async () => {
+  // 심볼/타임프레임 변경 시 차트/WS 재연결
+  await fetchCandles().catch(() => {})
+  connectWs()
+  await loadAccount()
+})
+
 onMounted(async () => {
   initChart()
+  await fetchCandles().catch(() => {})
   connectWs()
   await loadAccount()
 })
@@ -292,4 +538,3 @@ onBeforeUnmount(() => {
   ws = null
 })
 </script>
-
