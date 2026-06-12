@@ -8,7 +8,9 @@ const BodySchema = z.object({
   symbol: z.string().min(1),
   side: z.enum(['long', 'short']),
   margin: z.number().positive(),
-  leverage: z.number().int().min(1).max(100)
+  leverage: z.number().int().min(1).max(100),
+  // 지정가(데모): 바로 체결된 것으로 처리
+  price: z.number().positive().optional()
 })
 
 export default defineEventHandler(async (event) => {
@@ -23,23 +25,23 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: '잔고가 부족합니다.' })
   }
 
-  const { last } = await getOkxLastPrice(body.symbol)
-  const qty = (body.margin * body.leverage) / last
+  const entry = body.price ?? (await getOkxLastPrice(body.symbol)).last
+  const qty = (body.margin * body.leverage) / entry
 
   db.prepare('UPDATE balances SET usdt = usdt - ? WHERE user_id = ?').run(body.margin, user.id)
   db.prepare(
     'INSERT INTO positions (user_id, symbol, side, qty, entry_price, leverage, margin, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(user.id, body.symbol.toUpperCase(), body.side, qty, last, body.leverage, body.margin, new Date().toISOString())
+  ).run(user.id, body.symbol.toUpperCase(), body.side, qty, entry, body.leverage, body.margin, new Date().toISOString())
 
   await logBuy({
     userId: user.id,
     symbol: body.symbol.toUpperCase(),
     side: body.side,
-    buy_price: last,
+    buy_price: entry,
     qty,
     margin: body.margin,
     leverage: body.leverage
   })
 
-  return { ok: true, entryPrice: last, qty }
+  return { ok: true, entryPrice: entry, qty }
 })

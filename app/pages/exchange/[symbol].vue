@@ -42,8 +42,8 @@
     <!-- 메인 영역 (차트 / 호가 / 주문하기) -->
     <!-- 좁아져도 패널이 '줄어들어 깨지는' 대신, 최소폭 이하에서는 가로 스크롤 -->
     <div class="overflow-x-auto">
-      <!-- 요청: 모든(차트/호가/주문하기) 패널을 동일한 비율(동일 폭)로 -->
-      <div class="grid min-w-[1200px] grid-cols-3 gap-3">
+      <!-- 첨부 화면 비율: 차트 크게 + 호가/주문하기 작게 -->
+      <div class="grid min-w-[1280px] grid-cols-[minmax(720px,1fr)_320px_360px] gap-3">
       <!-- 차트 -->
       <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between gap-2">
@@ -140,123 +140,143 @@
           <div class="text-sm font-semibold">주문하기</div>
           <div class="flex items-center gap-2 text-xs">
             <span class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">격리</span>
-            <span class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">x{{ leverage }}</span>
+            <span class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">{{ leverage }}</span>
           </div>
-        </div>
-
-        <div class="mt-3 flex gap-2 text-xs">
-          <button
-            class="flex-1 rounded-md px-3 py-2 ring-1"
-            :class="orderType === 'market' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
-            @click="orderType = 'market'"
-            type="button"
-          >
-            시장가
-          </button>
-          <button
-            class="flex-1 rounded-md px-3 py-2 ring-1"
-            :class="orderType === 'limit' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
-            @click="orderType = 'limit'"
-            type="button"
-          >
-            지정가
-          </button>
-          <button
-            class="flex-1 rounded-md px-3 py-2 ring-1"
-            :class="orderType === 'trigger' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
-            @click="orderType = 'trigger'"
-            type="button"
-          >
-            예약
-          </button>
         </div>
 
         <div v-if="!me" class="mt-4 rounded-lg bg-black/20 p-3 text-sm text-slate-300">
           주문하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.
         </div>
 
-        <div class="mt-3 h-[560px] rounded-lg bg-black/20 p-3">
-        <form v-if="me" class="space-y-3" @submit.prevent="openPosition">
-          <div>
-            <div class="flex items-center justify-between text-xs text-slate-400">
-              <span>가격</span>
-              <span class="font-mono">USDT</span>
-            </div>
-            <input
-              class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10"
-              :value="orderType === 'market' ? '시장가' : (lastPrice ? fmtPrice(lastPrice) : '')"
-              disabled
-            />
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between text-xs text-slate-400">
-              <span>증거금</span>
-              <span class="font-mono">USDT</span>
-            </div>
-            <input
-              v-model.number="margin"
-              type="number"
-              min="1"
-              step="1"
-              class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between text-xs text-slate-400">
-              <span>레버리지</span>
-              <span class="font-mono">x{{ leverage }}</span>
-            </div>
-            <input v-model.number="leverage" type="range" min="1" max="100" class="mt-2 w-full" />
-            <div class="mt-1 flex justify-between text-[10px] text-slate-500">
-              <span>1</span><span>25</span><span>50</span><span>75</span><span>100</span>
-            </div>
-          </div>
-
-          <div class="rounded-lg bg-black/20 p-3 text-xs text-slate-300">
-            <div class="flex justify-between">
-              <span>사용가능 금액</span><span class="font-mono">{{ balance.toFixed(2) }} USDT</span>
-            </div>
-            <div class="mt-2 flex justify-between">
-              <span>최대 볼륨(대략)</span>
-              <span class="font-mono">{{ maxVolumeText }}</span>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 pt-1">
+        <div v-else class="mt-3 h-[560px] rounded-lg bg-black/20 p-3">
+          <!-- 탭 (시장가/지정가/예약) -->
+          <div class="grid grid-cols-3 gap-1 rounded-md bg-black/30 p-1 text-xs ring-1 ring-white/10">
             <button
               type="button"
-              class="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold hover:bg-emerald-500"
-              :disabled="loading"
-              @click="side = 'long'; openPosition()"
+              class="rounded px-3 py-2"
+              :class="orderType === 'market' ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:bg-white/5'"
+              @click="selectOrderType('market')"
             >
-              롱 오픈
+              시장가
             </button>
             <button
               type="button"
-              class="rounded-md bg-rose-600 px-3 py-2 text-sm font-semibold hover:bg-rose-500"
-              :disabled="loading"
-              @click="side = 'short'; openPosition()"
+              class="rounded px-3 py-2"
+              :class="orderType === 'limit' ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:bg-white/5'"
+              @click="selectOrderType('limit')"
             >
-              숏 오픈
+              지정가
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-2"
+              :class="orderType === 'trigger' ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:bg-white/5'"
+              @click="selectOrderType('trigger')"
+            >
+              예약
             </button>
           </div>
 
-          <p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
-          <p v-if="tradeMsg" class="text-sm text-emerald-300">{{ tradeMsg }}</p>
-          <div class="mt-4 rounded-lg bg-black/30 p-3 text-xs text-slate-300 ring-1 ring-white/10">
-            <div class="font-semibold text-slate-200">보유자산</div>
-            <div class="mt-2 space-y-1">
-              <div class="flex justify-between"><span>USDT</span><span class="font-mono">{{ balance.toFixed(2) }}</span></div>
-              <div class="flex justify-between"><span>미체결 주문</span><span class="font-mono">0</span></div>
-              <div class="flex justify-between"><span>포지션</span><span class="font-mono">{{ positions.length }}</span></div>
+          <form class="mt-4 space-y-3" @submit.prevent>
+            <!-- 구매 가격 -->
+            <div>
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span class="font-medium">구매 가격</span>
+                <span class="font-mono text-slate-400">USDT</span>
+              </div>
+              <input
+                v-if="orderType === 'limit'"
+                v-model.number="limitPrice"
+                type="number"
+                step="0.000001"
+                class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10 focus:ring-indigo-500"
+              />
+              <input
+                v-else
+                class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10"
+                :value="lastPrice ? fmtPrice(lastPrice) : ''"
+                disabled
+              />
             </div>
-          </div>
-        </form>
-        <div v-else class="rounded-lg bg-black/20 p-3 text-sm text-slate-300">
-          주문하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.
-        </div>
+
+            <!-- 수량(자동 계산) -->
+            <div>
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span class="font-medium">수량</span>
+                <span class="font-mono text-slate-400">{{ coinUnit }}</span>
+              </div>
+              <input
+                class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10"
+                :value="qtyText"
+                disabled
+              />
+            </div>
+
+            <!-- 비중 -->
+            <div>
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span class="font-medium">비중</span>
+                <span class="rounded bg-white/10 px-2 py-0.5 font-mono text-slate-100 ring-1 ring-white/10">
+                  {{ percent }}%
+                </span>
+              </div>
+              <input
+                v-model.number="percent"
+                type="range"
+                :min="orderType === 'limit' ? 1 : 0"
+                max="100"
+                step="1"
+                class="mt-2 w-full"
+              />
+              <div class="mt-1 flex justify-between text-[10px] text-slate-500">
+                <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+              </div>
+            </div>
+
+            <!-- 레버리지 -->
+            <div>
+              <div class="text-xs font-medium text-slate-300">레버리지</div>
+              <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
+                <span>레버리지 배율</span><span class="font-mono text-slate-100">x{{ leverage }}</span>
+              </div>
+              <div class="mt-1 flex items-center justify-between text-xs text-slate-400">
+                <span>최대 레버리지</span><span class="font-mono text-slate-100">x{{ leverage }}</span>
+              </div>
+              <input v-model.number="leverage" type="range" min="1" max="100" class="mt-2 w-full" />
+              <div class="mt-1 flex justify-between text-[10px] text-slate-500">
+                <span>1</span><span>25</span><span>50</span><span>75</span><span>100</span>
+              </div>
+            </div>
+
+            <div class="pt-1 text-xs text-slate-200">
+              <div class="flex justify-between"><span class="text-slate-400">사용가능 금액</span><span class="font-mono">{{ balance.toFixed(2) }}</span></div>
+              <div class="mt-2 flex justify-between"><span class="text-slate-400">증거금</span><span class="font-mono">{{ marginUsdt.toFixed(2) }}</span></div>
+              <div class="mt-2 flex justify-between"><span class="text-slate-400">최대 볼륨</span><span class="font-mono">{{ qtyText }} {{ coinUnit }}</span></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                class="rounded-md bg-emerald-700 px-3 py-3 text-sm font-semibold hover:bg-emerald-600"
+                :disabled="loading || orderType === 'trigger'"
+                @click="onOpen('long')"
+              >
+                롱 오픈
+              </button>
+              <button
+                type="button"
+                class="rounded-md bg-rose-700 px-3 py-3 text-sm font-semibold hover:bg-rose-600"
+                :disabled="loading || orderType === 'trigger'"
+                @click="onOpen('short')"
+              >
+                숏 오픈
+              </button>
+            </div>
+
+            <p v-if="orderType === 'trigger'" class="text-xs text-slate-400">예약 주문은 준비중입니다.</p>
+            <p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
+            <p v-if="tradeMsg" class="text-sm text-emerald-300">{{ tradeMsg }}</p>
+          </form>
         </div>
       </section>
       </div>
@@ -264,15 +284,37 @@
 
     <!-- 하단: 포지션 테이블 -->
     <section class="rounded-xl border border-white/10 bg-white/5 p-3">
-      <div class="flex items-end justify-between gap-3">
-        <div>
-          <div class="text-sm font-semibold">포지션</div>
-          <div class="text-xs text-slate-400">오픈 포지션 / 청산(모의)</div>
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-sm font-semibold">
+          <button
+            type="button"
+            class="rounded-md px-4 py-2 ring-1"
+            :class="bottomTab === 'positions' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+            @click="bottomTab = 'positions'"
+          >
+            포지션
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-4 py-2 text-xs ring-1"
+            :class="bottomTab === 'limit' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+            @click="bottomTab = 'limit'"
+          >
+            지정가 (0)
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-4 py-2 text-xs ring-1"
+            :class="bottomTab === 'trigger' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+            @click="bottomTab = 'trigger'"
+          >
+            예약 (0)
+          </button>
         </div>
-        <button class="rounded-md bg-white/10 px-3 py-1 text-xs hover:bg-white/15" @click="loadAccount">새로고침</button>
+        <button class="rounded-md bg-white/10 px-3 py-2 text-xs hover:bg-white/15" @click="loadAccount">새로고침</button>
       </div>
 
-      <div class="mt-3 overflow-auto">
+      <div class="mt-3 overflow-auto" v-if="bottomTab === 'positions'">
         <table class="w-full text-xs">
           <thead class="text-slate-400">
             <tr class="text-left">
@@ -297,13 +339,21 @@
               <td class="py-2 font-mono">{{ fmtPrice(Number(p.entry_price)) }}</td>
               <td class="py-2 font-mono">{{ Number(p.margin).toFixed(2) }}</td>
               <td class="py-2">
-                <button class="rounded-md bg-amber-500/20 px-2 py-1 ring-1 ring-amber-400/40 hover:bg-amber-500/30" @click="closePosition(p.id)">
-                  청산
-                </button>
+                <div class="flex items-center gap-2">
+                  <button class="rounded-md bg-white/10 px-2 py-1 ring-1 ring-white/10 hover:bg-white/15" @click="closePosition(p.id)">
+                    지정가
+                  </button>
+                  <button class="rounded-md bg-white/10 px-2 py-1 ring-1 ring-white/10 hover:bg-white/15" @click="closePosition(p.id)">
+                    시장가
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
+      </div>
+      <div v-else class="mt-3 rounded-lg bg-black/20 p-4 text-sm text-slate-400">
+        준비중입니다.
       </div>
     </section>
   </div>
@@ -333,6 +383,11 @@ function onChangeSymbol() {
 const timeframe = ref<'1m' | '5m' | '15m'>('1m')
 const chartMode = ref<'tradingview' | 'built'>('tradingview')
 const orderType = ref<'market' | 'limit' | 'trigger'>('market')
+const bottomTab = ref<'positions' | 'limit' | 'trigger'>('positions')
+
+// 주문 UI 상태(첨부 스타일)
+const percent = ref<number>(0)
+const limitPrice = ref<number>(0)
 
 const { me, refresh: refreshMe } = useMe()
 await refreshMe()
@@ -366,6 +421,7 @@ const chartEl = ref<HTMLElement | null>(null)
 let chart: IChartApi | null = null
 let candleSeries: ISeriesApi<'Candlestick'> | null = null
 let volumeSeries: ISeriesApi<'Histogram'> | null = null
+const priceLines: any[] = []
 
 const tvSymbol = computed(() => {
   // TradingView: OKX 무기한은 .P 심볼을 사용 (예: OKX:DOGEUSDT.P)
@@ -392,6 +448,27 @@ const maxVolumeText = computed(() => {
   if (!lastPrice.value) return '—'
   const max = (balance.value * leverage.value) / lastPrice.value
   return `${max.toFixed(6)}`
+})
+
+const coinUnit = computed(() => (symbol.value.startsWith('DOGE') ? 'DOGE' : symbol.value.startsWith('ETH') ? 'ETH' : 'BTC'))
+
+const entryCalcPrice = computed(() => {
+  if (orderType.value === 'limit' && Number.isFinite(limitPrice.value) && limitPrice.value > 0) return limitPrice.value
+  return lastPrice.value ?? 0
+})
+
+const marginUsdt = computed(() => {
+  const p = Math.max(0, Math.min(100, Number(percent.value || 0)))
+  return (balance.value * p) / 100
+})
+
+const qtyText = computed(() => {
+  const price = Number(entryCalcPrice.value || 0)
+  const m = Number(marginUsdt.value || 0)
+  const lev = Number(leverage.value || 1)
+  if (!price || !m) return '0.0000'
+  const qty = (m * lev) / price
+  return qty.toFixed(coinUnit.value === 'DOGE' ? 2 : 6)
 })
 
 function toInstId(sym: string) {
@@ -438,6 +515,37 @@ function initChart() {
   ro.observe(chartEl.value)
 }
 
+function clearEntryLines() {
+  if (!candleSeries) return
+  while (priceLines.length) {
+    const pl = priceLines.pop()
+    try {
+      candleSeries.removePriceLine(pl)
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function renderEntryLines() {
+  if (!candleSeries) return
+  clearEntryLines()
+  for (const p of positions.value) {
+    const price = Number(p.entry_price)
+    if (!Number.isFinite(price)) continue
+    const color = p.side === 'long' ? '#60a5fa' : '#fb7185'
+    const title = `${p.side === 'long' ? 'LONG' : 'SHORT'} ${fmtPrice(price)}`
+    const pl = candleSeries.createPriceLine({
+      price,
+      color,
+      lineWidth: 2,
+      axisLabelVisible: true,
+      title
+    })
+    priceLines.push(pl)
+  }
+}
+
 async function fetchCandles() {
   const instId = toInstId(symbol.value)
   const bar = timeframe.value
@@ -475,6 +583,9 @@ async function fetchCandles() {
   if (candles.length) {
     lastPrice.value = candles[candles.length - 1].close
   }
+
+  // 데이터 갱신 후 진입 라인 다시 표시
+  renderEntryLines()
 }
 
 async function reloadCandles() {
@@ -542,20 +653,76 @@ async function loadAccount() {
   const data = await $fetch<any>('/api/account')
   balance.value = data.balance.usdt
   positions.value = data.positions.filter((p: any) => p.symbol === symbol.value)
+
+  if (chartMode.value === 'built') {
+    renderEntryLines()
+  }
+}
+
+function selectOrderType(t: 'market' | 'limit' | 'trigger') {
+  orderType.value = t
+  tradeMsg.value = null
+  error.value = null
+  // 요구사항:
+  // - 시장가: 누르면 바로 정리(입력값 초기화)
+  // - 지정가: 가격 기본값=현재가, 비중 기본값=100%
+  if (t === 'market') {
+    percent.value = 0
+    if (lastPrice.value) limitPrice.value = lastPrice.value
+  } else if (t === 'limit') {
+    percent.value = 100
+    if (lastPrice.value) limitPrice.value = lastPrice.value
+  }
+}
+
+async function onOpen(s: 'long' | 'short') {
+  side.value = s
+  await openPosition()
 }
 
 async function openPosition() {
   if (!me.value) return
+  if (orderType.value === 'trigger') return
+
+  const m = Number(marginUsdt.value)
+  if (!Number.isFinite(m) || m <= 0) {
+    error.value = '비중을 1~100%로 설정해주세요.'
+    return
+  }
+
+  const price = Number(entryCalcPrice.value)
+  if (!Number.isFinite(price) || price <= 0) {
+    error.value = '가격 정보를 가져올 수 없습니다.'
+    return
+  }
+
   loading.value = true
   error.value = null
   tradeMsg.value = null
   try {
+    // 체결 후 진입가 라인을 보여주기 위해 기본차트로 전환
+    chartMode.value = 'built'
+    await nextTick()
+    initChart()
+    await fetchCandles().catch(() => {})
+
     await $fetch('/api/trade/open', {
       method: 'POST',
-      body: { symbol: symbol.value, side: side.value, margin: margin.value, leverage: leverage.value }
+      body: {
+        symbol: symbol.value,
+        side: side.value,
+        margin: m,
+        leverage: leverage.value,
+        ...(orderType.value === 'limit' ? { price } : {})
+      }
     })
     tradeMsg.value = '포지션이 오픈되었습니다.'
     await loadAccount()
+
+    // 시장가 탭은 오픈 후 다시 "정리" 상태로
+    if (orderType.value === 'market') {
+      percent.value = 0
+    }
   } catch (e: any) {
     error.value = e?.data?.statusMessage || '오픈 실패'
   } finally {
@@ -590,6 +757,9 @@ onMounted(async () => {
   }
   connectWs()
   await loadAccount()
+
+  // 초기값: 시장가 탭은 0%, 지정가는 100% (요구사항)
+  selectOrderType(orderType.value)
 })
 
 onBeforeUnmount(() => {
