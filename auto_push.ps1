@@ -13,7 +13,7 @@ if (-not (Test-Path ".git")) {
 # 버전 증가 (yyMMdd.N)
 $ver = $null
 try {
-  $ver = & powershell -ExecutionPolicy Bypass -File ".\\bump_version.ps1"
+  $ver = & node ".\\bump_version.mjs"
 } catch {
   $ver = $null
 }

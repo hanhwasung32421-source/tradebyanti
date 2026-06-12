@@ -23,6 +23,10 @@ if (-not (Test-Path $versionFile)) {
 }
 
 $json = $obj | ConvertTo-Json -Depth 5
+if ($json -is [System.Array]) {
+  $json = $json -join "`n"
+}
+$json = [string]$json
 
 # Windows PowerShell(5.x)의 -Encoding UTF8은 BOM이 붙어서
 # Nuxt 쪽 JSON.parse가 실패할 수 있으므로 BOM 없는 UTF-8로 저장

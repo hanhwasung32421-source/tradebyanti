@@ -17,7 +17,7 @@ while ($true) {
   if ($status) {
     $ver = $null
     try {
-      $ver = & powershell -ExecutionPolicy Bypass -File ".\\bump_version.ps1"
+      $ver = & node ".\\bump_version.mjs"
     } catch {
       $ver = $null
     }
