@@ -87,51 +87,85 @@
         </div>
       </section>
 
-      <!-- 호가 -->
+      <!-- 오더북(첨부 스타일) -->
       <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between">
-          <div class="text-sm font-semibold">호가</div>
+          <div class="text-sm font-semibold">오더북</div>
           <button class="rounded-md bg-white/10 px-2 py-1 text-xs hover:bg-white/15" @click="reconnect">재연결</button>
         </div>
 
-        <div class="mt-3 text-xs text-slate-400 grid grid-cols-3 gap-2">
-          <div class="text-right">가격(USDT)</div>
-          <div class="text-right">수량</div>
-          <div class="text-right">총 금액</div>
+        <div class="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-400">
+          <div>가격</div>
+          <div class="text-center">수량</div>
+          <div class="text-right">총량</div>
         </div>
 
         <div class="mt-2 h-[560px] rounded-lg bg-black/20 p-2">
           <div class="h-full overflow-y-auto">
-        <!-- 매도 -->
-        <div class="space-y-1">
-          <div
-            v-for="a in asks"
-            :key="a[0]"
-            class="grid grid-cols-3 gap-2 font-mono text-xs"
-          >
-            <div class="text-right text-rose-300">{{ a[0] }}</div>
-            <div class="text-right text-slate-200">{{ a[1] }}</div>
-            <div class="text-right text-slate-400">{{ fmtNum(Number(a[0]) * Number(a[1])) }}</div>
-          </div>
-        </div>
+            <!-- 매도(위) -->
+            <div class="space-y-1">
+              <div
+                v-for="r in askRows"
+                :key="'a' + r.price"
+                class="grid grid-cols-3 gap-2 font-mono text-xs"
+              >
+                <div class="py-1 text-slate-200">{{ fmtPrice(r.price) }}</div>
+                <div class="relative overflow-hidden rounded-sm bg-rose-600/80 px-2 py-1 text-center text-slate-100">
+                  {{ r.qtyText }}
+                </div>
+                <div class="relative overflow-hidden rounded-sm px-2 py-1 text-right text-slate-100">
+                  <div
+                    class="absolute inset-y-0 right-0 bg-rose-500/35"
+                    :style="{ width: r.depthPct + '%' }"
+                  />
+                  <span class="relative">{{ r.totalText }}</span>
+                </div>
+              </div>
+            </div>
 
-        <!-- 현재가 -->
-        <div class="my-2 rounded-md bg-black/30 px-3 py-2 text-center font-mono text-sm ring-1 ring-white/10">
-          {{ lastPrice ? fmtPrice(lastPrice) : '—' }}
-        </div>
+            <!-- 현재가 -->
+            <div class="my-3 text-center font-mono text-lg text-emerald-300">
+              {{ lastPrice ? fmtPrice(lastPrice) : '—' }} <span class="text-sm text-slate-300">USDT</span>
+            </div>
 
-        <!-- 매수 -->
-        <div class="space-y-1">
-          <div
-            v-for="b in bids"
-            :key="b[0]"
-            class="grid grid-cols-3 gap-2 font-mono text-xs"
-          >
-            <div class="text-right text-emerald-300">{{ b[0] }}</div>
-            <div class="text-right text-slate-200">{{ b[1] }}</div>
-            <div class="text-right text-slate-400">{{ fmtNum(Number(b[0]) * Number(b[1])) }}</div>
-          </div>
-        </div>
+            <!-- 매수(아래) -->
+            <div class="space-y-1">
+              <div
+                v-for="r in bidRows"
+                :key="'b' + r.price"
+                class="grid grid-cols-3 gap-2 font-mono text-xs"
+              >
+                <div class="py-1 text-slate-200">{{ fmtPrice(r.price) }}</div>
+                <div class="relative overflow-hidden rounded-sm bg-emerald-600/80 px-2 py-1 text-center text-slate-100">
+                  {{ r.qtyText }}
+                </div>
+                <div class="relative overflow-hidden rounded-sm px-2 py-1 text-right text-slate-100">
+                  <div
+                    class="absolute inset-y-0 right-0 bg-emerald-500/35"
+                    :style="{ width: r.depthPct + '%' }"
+                  />
+                  <span class="relative">{{ r.totalText }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- BUY/SELL 비율 -->
+            <div class="mt-4">
+              <div class="h-5 w-full overflow-hidden rounded bg-black/30 ring-1 ring-white/10">
+                <div class="flex h-full w-full">
+                  <div class="bg-emerald-500" :style="{ width: buyPct + '%' }" />
+                  <div class="bg-rose-500" :style="{ width: 100 - buyPct + '%' }" />
+                </div>
+              </div>
+              <div class="mt-1 flex items-center justify-between text-xs">
+                <div class="font-mono text-emerald-300">{{ buyPct.toFixed(0) }}%</div>
+                <div class="font-mono text-rose-300">{{ (100 - buyPct).toFixed(0) }}%</div>
+              </div>
+              <div class="mt-1 flex items-center justify-between text-xs text-slate-400">
+                <div class="font-semibold text-emerald-300">BUY</div>
+                <div class="font-semibold text-rose-300">SELL</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -478,6 +512,71 @@ function fmtNum(v: number) {
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
+function fmtDepth(v: number) {
+  // 수량/총량 표시(첨부는 소수 3자리 정도)
+  if (!Number.isFinite(v)) return '0.000'
+  if (v >= 10) return v.toFixed(3)
+  if (v >= 1) return v.toFixed(3)
+  return v.toFixed(3)
+}
+
+const askRows = computed(() => {
+  const raw = (asks.value || [])
+    .map(([p, q]) => ({ price: Number(p), qty: Number(q) }))
+    .filter((x) => Number.isFinite(x.price) && Number.isFinite(x.qty))
+  // 첨부: 매도 8줄
+  const view = raw.slice(0, 8) // asks는 이미 위가 높은 가격이 되도록 구성됨
+
+  // 누적은 아래(가장 가까운 가격)부터 위로
+  let cum = 0
+  const totals: number[] = new Array(view.length).fill(0)
+  for (let i = view.length - 1; i >= 0; i--) {
+    cum += view[i].qty
+    totals[i] = cum
+  }
+  const maxTotal = Math.max(...totals, 1)
+  return view.map((r, i) => ({
+    price: r.price,
+    qty: r.qty,
+    qtyText: fmtDepth(r.qty),
+    total: totals[i],
+    totalText: fmtDepth(totals[i]),
+    depthPct: Math.min(100, (totals[i] / maxTotal) * 100)
+  }))
+})
+
+const bidRows = computed(() => {
+  const raw = (bids.value || [])
+    .map(([p, q]) => ({ price: Number(p), qty: Number(q) }))
+    .filter((x) => Number.isFinite(x.price) && Number.isFinite(x.qty))
+  // 첨부: 매수 7줄
+  const view = raw.slice(0, 7)
+
+  let cum = 0
+  const totals: number[] = new Array(view.length).fill(0)
+  for (let i = view.length - 1; i >= 0; i--) {
+    cum += view[i].qty
+    totals[i] = cum
+  }
+  const maxTotal = Math.max(...totals, 1)
+  return view.map((r, i) => ({
+    price: r.price,
+    qty: r.qty,
+    qtyText: fmtDepth(r.qty),
+    total: totals[i],
+    totalText: fmtDepth(totals[i]),
+    depthPct: Math.min(100, (totals[i] / maxTotal) * 100)
+  }))
+})
+
+const buyPct = computed(() => {
+  const buy = bidRows.value.length ? bidRows.value[0].total : 0
+  const sell = askRows.value.length ? askRows.value[0].total : 0
+  const sum = buy + sell
+  if (!sum) return 50
+  return (buy / sum) * 100
+})
+
 function fmtQty(sym: string, qty: number) {
   const s = String(sym || '').toUpperCase()
   if (s.startsWith('DOGE')) return Number(qty).toFixed(2)
@@ -670,7 +769,8 @@ function connectWs() {
         op: 'subscribe',
         args: [
           { channel: 'tickers', instId },
-          { channel: 'books5', instId }
+          // 첨부처럼 더 많은 레벨이 필요해서 books 사용
+          { channel: 'books', instId }
         ]
       })
     )
@@ -693,10 +793,11 @@ function connectWs() {
         vol24.value = Number(data.vol24h ?? data.vol24) || vol24.value
       }
 
-      if (arg.channel === 'books5') {
-        const a = (data.asks || []).slice(0, 10).map((x: any[]) => [x[0], x[1]] as [string, string])
-        const b = (data.bids || []).slice(0, 10).map((x: any[]) => [x[0], x[1]] as [string, string])
-        asks.value = a.reverse()
+      if (arg.channel === 'books') {
+        // OKX books는 depth가 많음. 화면용으로 일부만 사용.
+        const a = (data.asks || []).slice(0, 50).map((x: any[]) => [x[0], x[1]] as [string, string])
+        const b = (data.bids || []).slice(0, 50).map((x: any[]) => [x[0], x[1]] as [string, string])
+        asks.value = a.reverse() // 위쪽에 높은 가격
         bids.value = b
       }
     } catch {
