@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import os from 'node:os'
 import bcrypt from 'bcryptjs'
 
 let _db: DatabaseSync | null = null
@@ -12,8 +13,15 @@ function nowIso() {
 export function getDb() {
   if (_db) return _db
 
-  const dataDir = join(process.cwd(), 'data')
-  mkdirSync(dataDir, { recursive: true })
+  // 배포 환경(서버리스 등)에서는 프로젝트 폴더가 read-only인 경우가 있어
+  // 우선순위: SQLITE_DIR 환경변수 -> 프로젝트/data -> OS 임시폴더
+  let dataDir = process.env.SQLITE_DIR || join(process.cwd(), 'data')
+  try {
+    mkdirSync(dataDir, { recursive: true })
+  } catch {
+    dataDir = join(os.tmpdir(), 'exchange-demo-data')
+    mkdirSync(dataDir, { recursive: true })
+  }
 
   const dbPath = join(dataDir, 'app.db')
   mkdirSync(dirname(dbPath), { recursive: true })
@@ -100,4 +108,3 @@ export function getDb() {
 export function isoPlusDays(days: number) {
   return new Date(Date.now() + days * 86400000).toISOString()
 }
-
