@@ -26,7 +26,7 @@ $json = $obj | ConvertTo-Json -Depth 5
 
 # Windows PowerShell(5.x)의 -Encoding UTF8은 BOM이 붙어서
 # Nuxt 쪽 JSON.parse가 실패할 수 있으므로 BOM 없는 UTF-8로 저장
-$utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
-[System.IO.File]::WriteAllText($versionFile, $json, $utf8NoBom)
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+[System.IO.File]::WriteAllBytes($versionFile, $bytes)
 
 Write-Output ("{0}.{1}" -f $obj.date, $obj.build)
