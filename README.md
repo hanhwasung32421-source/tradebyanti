@@ -101,6 +101,11 @@ cd 'c:\trae\베트남\거래소\exchange-demo' ; .\auto_push.ps1
 cd 'c:\trae\베트남\거래소\exchange-demo' ; .\watch_push.ps1
 ```
 
+## 버전 표기
+
+- 우측 상단에 `vYYMMDD.N` 형식으로 표시됩니다. (예: `v260612.1`)
+- `auto_push.ps1`/`watch_push.ps1`가 커밋 전에 `version.json`을 자동으로 올립니다.
+
 ## 배포
 
 - GitHub Pages에는 이 프로젝트를 그대로 배포할 수 없습니다. 서버 API와 SQLite가 필요하기 때문입니다.

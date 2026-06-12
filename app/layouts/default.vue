@@ -14,6 +14,9 @@
         </nav>
 
         <div class="flex items-center gap-2 text-sm">
+          <span class="hidden sm:inline rounded-md bg-white/5 px-2 py-1 text-xs font-mono text-slate-300 ring-1 ring-white/10">
+            v{{ appVersion }}
+          </span>
           <template v-if="me">
             <span class="hidden sm:inline text-slate-300">{{ me.username }}</span>
             <button class="rounded-md bg-white/10 px-3 py-1 hover:bg-white/15" @click="logout">
@@ -41,6 +44,7 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
 const appName = config.public.appName
+const appVersion = config.public.appVersion
 
 const { me, refresh } = useMe()
 await refresh()
@@ -51,4 +55,3 @@ async function logout() {
   await navigateTo('/')
 }
 </script>
-

@@ -10,6 +10,14 @@ if (-not (Test-Path ".git")) {
   git remote add origin 'https://github.com/hanhwasung32421-source/usdetrade.git'
 }
 
+# 버전 증가 (yyMMdd.N)
+$ver = $null
+try {
+  $ver = & powershell -ExecutionPolicy Bypass -File ".\\bump_version.ps1"
+} catch {
+  $ver = $null
+}
+
 git add -A
 $status = git status --porcelain
 if (-not $status) {
@@ -18,9 +26,12 @@ if (-not $status) {
 }
 
 if ([string]::IsNullOrWhiteSpace($Message)) {
-  $Message = "auto update $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+  if ($ver) {
+    $Message = "auto update v$ver"
+  } else {
+    $Message = "auto update $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+  }
 }
 
 git commit -m $Message
 git push -u origin main
-

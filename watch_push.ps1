@@ -15,11 +15,21 @@ Write-Host "자동 푸시 감시 시작. 중지하려면 Ctrl + C"
 while ($true) {
   $status = git status --porcelain
   if ($status) {
+    $ver = $null
+    try {
+      $ver = & powershell -ExecutionPolicy Bypass -File ".\\bump_version.ps1"
+    } catch {
+      $ver = $null
+    }
+
     git add -A
     $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    git commit -m "auto watch update $stamp"
+    if ($ver) {
+      git commit -m "auto watch update v$ver"
+    } else {
+      git commit -m "auto watch update $stamp"
+    }
     git push -u origin main
   }
   Start-Sleep -Seconds $IntervalSeconds
 }
-
