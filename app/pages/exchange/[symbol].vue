@@ -105,20 +105,21 @@
             <!-- 매도(위) -->
             <div class="space-y-1">
               <div
-                v-for="r in askRows"
-                :key="'a' + r.price"
-                class="grid grid-cols-3 gap-2 font-mono text-xs"
+                v-for="(r, idx) in askRows"
+                :key="'a' + idx"
+                class="grid h-7 grid-cols-3 items-center gap-2 font-mono text-xs"
               >
-                <div class="py-1 text-slate-200">{{ fmtPrice(r.price) }}</div>
+                <div class="text-slate-200">{{ r ? fmtPrice(r.price) : '—' }}</div>
                 <div class="relative overflow-hidden rounded-sm bg-rose-600/80 px-2 py-1 text-center text-slate-100">
-                  {{ r.qtyText }}
+                  {{ r ? r.qtyText : '—' }}
                 </div>
                 <div class="relative overflow-hidden rounded-sm px-2 py-1 text-right text-slate-100">
                   <div
+                    v-if="r"
                     class="absolute inset-y-0 right-0 bg-rose-500/35"
                     :style="{ width: r.depthPct + '%' }"
                   />
-                  <span class="relative">{{ r.totalText }}</span>
+                  <span class="relative">{{ r ? r.totalText : '—' }}</span>
                 </div>
               </div>
             </div>
@@ -131,20 +132,21 @@
             <!-- 매수(아래) -->
             <div class="space-y-1">
               <div
-                v-for="r in bidRows"
-                :key="'b' + r.price"
-                class="grid grid-cols-3 gap-2 font-mono text-xs"
+                v-for="(r, idx) in bidRows"
+                :key="'b' + idx"
+                class="grid h-7 grid-cols-3 items-center gap-2 font-mono text-xs"
               >
-                <div class="py-1 text-slate-200">{{ fmtPrice(r.price) }}</div>
+                <div class="text-slate-200">{{ r ? fmtPrice(r.price) : '—' }}</div>
                 <div class="relative overflow-hidden rounded-sm bg-emerald-600/80 px-2 py-1 text-center text-slate-100">
-                  {{ r.qtyText }}
+                  {{ r ? r.qtyText : '—' }}
                 </div>
                 <div class="relative overflow-hidden rounded-sm px-2 py-1 text-right text-slate-100">
                   <div
+                    v-if="r"
                     class="absolute inset-y-0 right-0 bg-emerald-500/35"
                     :style="{ width: r.depthPct + '%' }"
                   />
-                  <span class="relative">{{ r.totalText }}</span>
+                  <span class="relative">{{ r ? r.totalText : '—' }}</span>
                 </div>
               </div>
             </div>
@@ -520,14 +522,53 @@ function fmtDepth(v: number) {
   return v.toFixed(3)
 }
 
-const askRows = computed(() => {
-  const raw = (asks.value || [])
-    .map(([p, q]) => ({ price: Number(p), qty: Number(q) }))
-    .filter((x) => Number.isFinite(x.price) && Number.isFinite(x.qty))
-  // 첨부: 매도 8줄
-  const view = raw.slice(0, 8) // asks는 이미 위가 높은 가격이 되도록 구성됨
+type DepthRow = { price: number; qty: number; qtyText: string; total: number; totalText: string; depthPct: number }
 
-  // 누적은 아래(가장 가까운 가격)부터 위로
+// 오더북을 "가격 라더"처럼 유지하기 위해 Map으로 누적 업데이트
+const obAsks = shallowRef<Map<number, number>>(new Map())
+const obBids = shallowRef<Map<number, number>>(new Map())
+
+function resetOrderbook() {
+  obAsks.value = new Map()
+  obBids.value = new Map()
+}
+
+function applyOrderbookUpdate(levels: any[], side: 'ask' | 'bid') {
+  const map = side === 'ask' ? obAsks.value : obBids.value
+  for (const lv of levels || []) {
+    const price = Number(lv?.[0])
+    const qty = Number(lv?.[1])
+    if (!Number.isFinite(price) || !Number.isFinite(qty)) continue
+    if (qty <= 0) map.delete(price)
+    else map.set(price, qty)
+  }
+
+  // 너무 커지면 근처 레벨만 유지(성능/메모리)
+  const entries = Array.from(map.entries())
+  if (entries.length > 500) {
+    const sorted =
+      side === 'ask'
+        ? entries.sort((a, b) => a[0] - b[0]).slice(0, 250)
+        : entries.sort((a, b) => b[0] - a[0]).slice(0, 250)
+    const next = new Map<number, number>()
+    for (const [p, q] of sorted) next.set(p, q)
+    if (side === 'ask') obAsks.value = next
+    else obBids.value = next
+  }
+}
+
+function buildRows(side: 'ask' | 'bid', count: number): Array<DepthRow | null> {
+  const map = side === 'ask' ? obAsks.value : obBids.value
+  const entries = Array.from(map.entries()).map(([price, qty]) => ({ price, qty }))
+
+  if (!entries.length) return new Array(count).fill(null)
+
+  const view =
+    side === 'ask'
+      ? entries.sort((a, b) => a.price - b.price).slice(0, count).reverse() // 위에 높은 가격, 아래가 best ask
+      : entries.sort((a, b) => b.price - a.price).slice(0, count) // 위가 best bid
+
+  // 누적 총량: 아래에서 위로
   let cum = 0
   const totals: number[] = new Array(view.length).fill(0)
   for (let i = view.length - 1; i >= 0; i--) {
@@ -535,7 +576,8 @@ const askRows = computed(() => {
     totals[i] = cum
   }
   const maxTotal = Math.max(...totals, 1)
-  return view.map((r, i) => ({
+
+  const rows: DepthRow[] = view.map((r, i) => ({
     price: r.price,
     qty: r.qty,
     qtyText: fmtDepth(r.qty),
@@ -543,35 +585,20 @@ const askRows = computed(() => {
     totalText: fmtDepth(totals[i]),
     depthPct: Math.min(100, (totals[i] / maxTotal) * 100)
   }))
-})
 
-const bidRows = computed(() => {
-  const raw = (bids.value || [])
-    .map(([p, q]) => ({ price: Number(p), qty: Number(q) }))
-    .filter((x) => Number.isFinite(x.price) && Number.isFinite(x.qty))
-  // 첨부: 매수 7줄
-  const view = raw.slice(0, 7)
-
-  let cum = 0
-  const totals: number[] = new Array(view.length).fill(0)
-  for (let i = view.length - 1; i >= 0; i--) {
-    cum += view[i].qty
-    totals[i] = cum
+  // 항상 고정 개수 유지 (개수/높이 변동 방지)
+  if (rows.length < count) {
+    return rows.concat(new Array(count - rows.length).fill(null))
   }
-  const maxTotal = Math.max(...totals, 1)
-  return view.map((r, i) => ({
-    price: r.price,
-    qty: r.qty,
-    qtyText: fmtDepth(r.qty),
-    total: totals[i],
-    totalText: fmtDepth(totals[i]),
-    depthPct: Math.min(100, (totals[i] / maxTotal) * 100)
-  }))
-})
+  return rows
+}
+
+const askRows = computed(() => buildRows('ask', 8))
+const bidRows = computed(() => buildRows('bid', 7))
 
 const buyPct = computed(() => {
-  const buy = bidRows.value.length ? bidRows.value[0].total : 0
-  const sell = askRows.value.length ? askRows.value[0].total : 0
+  const buy = bidRows.value.find((x) => !!x)?.total || 0
+  const sell = askRows.value.find((x) => !!x)?.total || 0
   const sum = buy + sell
   if (!sum) return 50
   return (buy / sum) * 100
@@ -757,6 +784,7 @@ function connectWs() {
   ws?.close()
   asks.value = []
   bids.value = []
+  resetOrderbook()
   wsStatus.value = 'connecting'
 
   const instId = toInstId(symbol.value)
@@ -794,11 +822,13 @@ function connectWs() {
       }
 
       if (arg.channel === 'books') {
-        // OKX books는 depth가 많음. 화면용으로 일부만 사용.
-        const a = (data.asks || []).slice(0, 50).map((x: any[]) => [x[0], x[1]] as [string, string])
-        const b = (data.bids || []).slice(0, 50).map((x: any[]) => [x[0], x[1]] as [string, string])
-        asks.value = a.reverse() // 위쪽에 높은 가격
-        bids.value = b
+        // snapshot/update 모두 처리 (수량 0은 제거)
+        if (msg?.action === 'snapshot') {
+          resetOrderbook()
+        }
+
+        applyOrderbookUpdate(data.asks, 'ask')
+        applyOrderbookUpdate(data.bids, 'bid')
       }
     } catch {
       // ignore
