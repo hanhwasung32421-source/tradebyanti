@@ -10,6 +10,7 @@ if (-not (Test-Path $versionFile)) {
   $obj = @{ date = (Get-TodayStamp); build = 1 }
 } else {
   $raw = Get-Content $versionFile -Raw -Encoding UTF8
+  $raw = $raw -replace "^\uFEFF", ""
   $obj = $raw | ConvertFrom-Json
 
   $today = Get-TodayStamp
@@ -22,7 +23,10 @@ if (-not (Test-Path $versionFile)) {
 }
 
 $json = $obj | ConvertTo-Json -Depth 5
-Set-Content -Path $versionFile -Value $json -Encoding UTF8
+
+# Windows PowerShell(5.x)의 -Encoding UTF8은 BOM이 붙어서
+# Nuxt 쪽 JSON.parse가 실패할 수 있으므로 BOM 없는 UTF-8로 저장
+$utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
+[System.IO.File]::WriteAllText($versionFile, $json, $utf8NoBom)
 
 Write-Output ("{0}.{1}" -f $obj.date, $obj.build)
-

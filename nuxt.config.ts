@@ -5,7 +5,9 @@ import { join } from 'node:path'
 function getAppVersion() {
   try {
     const raw = readFileSync(join(process.cwd(), 'version.json'), 'utf8')
-    const v = JSON.parse(raw)
+    // Windows PowerShell이 UTF-8 BOM을 붙이는 경우가 있어 제거
+    const cleaned = raw.replace(/^\uFEFF/, '')
+    const v = JSON.parse(cleaned)
     if (v?.date && v?.build) return `${v.date}.${v.build}`
   } catch {
     // ignore
