@@ -527,10 +527,15 @@ type DepthRow = { price: number; qty: number; qtyText: string; total: number; to
 // 오더북을 "가격 라더"처럼 유지하기 위해 Map으로 누적 업데이트
 const obAsks = shallowRef<Map<number, number>>(new Map())
 const obBids = shallowRef<Map<number, number>>(new Map())
+// 화면에 보여줄 가격(고정): 매도 8줄(높은→낮은), 매수 7줄(높은→낮은)
+const askDisplay = ref<number[]>([])
+const bidDisplay = ref<number[]>([])
 
 function resetOrderbook() {
   obAsks.value = new Map()
   obBids.value = new Map()
+  askDisplay.value = []
+  bidDisplay.value = []
 }
 
 function applyOrderbookUpdate(levels: any[], side: 'ask' | 'bid') {
@@ -557,48 +562,76 @@ function applyOrderbookUpdate(levels: any[], side: 'ask' | 'bid') {
   }
 }
 
-function buildRows(side: 'ask' | 'bid', count: number): Array<DepthRow | null> {
+function getAskPricesAsc(limit = 200) {
+  return Array.from(obAsks.value.keys()).sort((a, b) => a - b).slice(0, limit) // best ask 근처
+}
+function getBidPricesDesc(limit = 200) {
+  return Array.from(obBids.value.keys()).sort((a, b) => b - a).slice(0, limit) // best bid 근처
+}
+
+function initDisplayFromMaps() {
+  const asksAsc = getAskPricesAsc(300)
+  const bidsDesc = getBidPricesDesc(300)
+  // asks는 best ask부터 위로 8개를 뽑고(낮은→높은), 화면은 높은→낮은
+  askDisplay.value = asksAsc.slice(0, 8).reverse()
+  // bids는 높은→낮은 그대로 7개
+  bidDisplay.value = bidsDesc.slice(0, 7)
+}
+
+function refreshDisplayIfNeeded() {
+  // 가격 라더는 가급적 유지하고, "수량이 0이 되어 삭제된 가격"이 화면에 있으면 그때만 재구성
+  const askMissing = askDisplay.value.some((p) => !obAsks.value.has(p))
+  const bidMissing = bidDisplay.value.some((p) => !obBids.value.has(p))
+  if (askMissing || askDisplay.value.length !== 8) {
+    const asksAsc = getAskPricesAsc(300)
+    askDisplay.value = asksAsc.slice(0, 8).reverse()
+  }
+  if (bidMissing || bidDisplay.value.length !== 7) {
+    const bidsDesc = getBidPricesDesc(300)
+    bidDisplay.value = bidsDesc.slice(0, 7)
+  }
+}
+
+function buildRowsFromDisplay(side: 'ask' | 'bid', count: number): Array<DepthRow | null> {
   const map = side === 'ask' ? obAsks.value : obBids.value
-  const entries = Array.from(map.entries()).map(([price, qty]) => ({ price, qty }))
+  const prices = side === 'ask' ? askDisplay.value : bidDisplay.value
 
-  if (!entries.length) return new Array(count).fill(null)
-
-  const view =
-    side === 'ask'
-      ? entries.sort((a, b) => a.price - b.price).slice(0, count).reverse() // 위에 높은 가격, 아래가 best ask
-      : entries.sort((a, b) => b.price - a.price).slice(0, count) // 위가 best bid
+  if (!prices.length) return new Array(count).fill(null)
+  const view = prices.slice(0, count)
 
   // 누적 총량: 아래에서 위로
   let cum = 0
   const totals: number[] = new Array(view.length).fill(0)
   for (let i = view.length - 1; i >= 0; i--) {
-    cum += view[i].qty
+    const q = Number(map.get(view[i]) ?? 0)
+    cum += q
     totals[i] = cum
   }
   const maxTotal = Math.max(...totals, 1)
 
-  const rows: DepthRow[] = view.map((r, i) => ({
-    price: r.price,
-    qty: r.qty,
-    qtyText: fmtDepth(r.qty),
-    total: totals[i],
-    totalText: fmtDepth(totals[i]),
-    depthPct: Math.min(100, (totals[i] / maxTotal) * 100)
-  }))
+  const rows: Array<DepthRow | null> = view.map((price, i) => {
+    const qty = Number(map.get(price) ?? 0)
+    return {
+      price,
+      qty,
+      qtyText: fmtDepth(qty),
+      total: totals[i],
+      totalText: fmtDepth(totals[i]),
+      depthPct: Math.min(100, (totals[i] / maxTotal) * 100)
+    }
+  })
 
-  // 항상 고정 개수 유지 (개수/높이 변동 방지)
-  if (rows.length < count) {
-    return rows.concat(new Array(count - rows.length).fill(null))
-  }
+  if (rows.length < count) return rows.concat(new Array(count - rows.length).fill(null))
   return rows
 }
 
-const askRows = computed(() => buildRows('ask', 8))
-const bidRows = computed(() => buildRows('bid', 7))
+const askRows = computed(() => buildRowsFromDisplay('ask', 8))
+const bidRows = computed(() => buildRowsFromDisplay('bid', 7))
 
 const buyPct = computed(() => {
-  const buy = bidRows.value.find((x) => !!x)?.total || 0
-  const sell = askRows.value.find((x) => !!x)?.total || 0
+  // 화면에 보이는 수량 합 기준
+  const buy = bidRows.value.reduce((s, r) => s + (r?.qty ?? 0), 0)
+  const sell = askRows.value.reduce((s, r) => s + (r?.qty ?? 0), 0)
   const sum = buy + sell
   if (!sum) return 50
   return (buy / sum) * 100
@@ -829,6 +862,12 @@ function connectWs() {
 
         applyOrderbookUpdate(data.asks, 'ask')
         applyOrderbookUpdate(data.bids, 'bid')
+
+        if (msg?.action === 'snapshot') {
+          initDisplayFromMaps()
+        } else {
+          refreshDisplayIfNeeded()
+        }
       }
     } catch {
       // ignore
