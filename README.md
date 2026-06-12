@@ -78,6 +78,11 @@ bun run dev
 - SQLite 파일: `data/app.db` (프로젝트 폴더 내부)
 - Supabase(자동 저장): `SUPABASE_EXTRA_TABLES.sql`를 Supabase SQL Editor에서 실행 후 사용
 
+## 관리자 기본 잔고(데모)
+
+- 총관리자 `admin` 계정은 데모 편의상 USDT가 최소 `10000`이 되도록 시드가 들어갑니다.
+- 값을 바꾸려면 배포 환경변수 `SEED_ADMIN_USDT`로 조정할 수 있습니다. (예: `SEED_ADMIN_USDT=50000`)
+
 ## Supabase 연결(anon)
 
 - URL: `https://dyfycrmltqosezmsufup.supabase.co`

@@ -101,6 +101,21 @@ export function getDb() {
     db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(admin.id, 0)
   }
 
+  // 데모 기본값: 총관리자(admin) USDT를 최소 10000으로 유지
+  // (배포 환경에서 SQLite 파일이 초기화되더라도 admin이 항상 거래 가능한 상태가 되도록)
+  const seedAdminUsdt = Number(process.env.SEED_ADMIN_USDT ?? '10000')
+  if (Number.isFinite(seedAdminUsdt) && seedAdminUsdt > 0) {
+    const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin') as { id: number } | undefined
+    if (admin?.id) {
+      db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(admin.id, seedAdminUsdt)
+      db.prepare('UPDATE balances SET usdt = CASE WHEN usdt < ? THEN ? ELSE usdt END WHERE user_id = ?').run(
+        seedAdminUsdt,
+        seedAdminUsdt,
+        admin.id
+      )
+    }
+  }
+
   _db = db
   return db
 }
