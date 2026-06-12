@@ -46,6 +46,22 @@
         <div class="flex items-center justify-between gap-2">
           <div class="text-sm font-semibold">차트</div>
           <div class="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 ring-1"
+              :class="chartMode === 'tradingview' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+              @click="chartMode = 'tradingview'"
+            >
+              TradingView
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 ring-1"
+              :class="chartMode === 'built' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+              @click="chartMode = 'built'"
+            >
+              기본차트
+            </button>
             <select v-model="timeframe" class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">
               <option value="1m">1분</option>
               <option value="5m">5분</option>
@@ -54,7 +70,16 @@
             <button class="rounded-md bg-white/10 px-2 py-1 hover:bg-white/15" @click="reloadCandles">새로고침</button>
           </div>
         </div>
-        <div ref="chartEl" class="mt-3 h-[520px] w-full overflow-hidden rounded-lg bg-black/40"></div>
+        <div class="mt-3 h-[520px] w-full overflow-hidden rounded-lg bg-black/40">
+          <ClientOnly>
+            <TradingViewWidget
+              v-if="chartMode === 'tradingview'"
+              :symbol="tvSymbol"
+              :interval="tvInterval"
+            />
+            <div v-else ref="chartEl" class="h-full w-full" />
+          </ClientOnly>
+        </div>
       </section>
 
       <!-- 호가 -->
@@ -285,6 +310,7 @@ function onChangeSymbol() {
 }
 
 const timeframe = ref<'1m' | '5m' | '15m'>('1m')
+const chartMode = ref<'tradingview' | 'built'>('tradingview')
 const orderType = ref<'market' | 'limit' | 'trigger'>('market')
 
 const { me, refresh: refreshMe } = useMe()
@@ -319,6 +345,16 @@ const chartEl = ref<HTMLElement | null>(null)
 let chart: IChartApi | null = null
 let candleSeries: ISeriesApi<'Candlestick'> | null = null
 let volumeSeries: ISeriesApi<'Histogram'> | null = null
+
+const tvSymbol = computed(() => {
+  // TradingView: OKX 무기한은 .P 심볼을 사용 (예: OKX:DOGEUSDT.P)
+  return `OKX:${symbol.value}.P`
+})
+const tvInterval = computed(() => {
+  if (timeframe.value === '1m') return '1'
+  if (timeframe.value === '5m') return '5'
+  return '15'
+})
 
 function fmtPrice(v: number) {
   if (!Number.isFinite(v)) return '—'
@@ -384,10 +420,8 @@ function initChart() {
 async function fetchCandles() {
   const instId = toInstId(symbol.value)
   const bar = timeframe.value
-  // OKX REST: /api/v5/market/candles
-  const res = await $fetch<any>('https://www.okx.com/api/v5/market/candles', {
-    query: { instId, bar, limit: 120 }
-  })
+  // OKX REST는 브라우저 CORS 이슈가 있을 수 있어 서버 프록시를 사용
+  const res = await $fetch<any>('/api/okx/candles', { query: { instId, bar, limit: 120 } })
   const rows = (res?.data || []) as string[][]
   const candles: CandlestickData[] = []
   const vols: HistogramData[] = []
@@ -521,14 +555,18 @@ async function closePosition(positionId: number) {
 
 watch([() => symbol.value, timeframe], async () => {
   // 심볼/타임프레임 변경 시 차트/WS 재연결
-  await fetchCandles().catch(() => {})
+  if (chartMode.value === 'built') {
+    await fetchCandles().catch(() => {})
+  }
   connectWs()
   await loadAccount()
 })
 
 onMounted(async () => {
   initChart()
-  await fetchCandles().catch(() => {})
+  if (chartMode.value === 'built') {
+    await fetchCandles().catch(() => {})
+  }
   connectWs()
   await loadAccount()
 })
