@@ -42,9 +42,8 @@
     <!-- 메인 영역 (차트 / 호가 / 주문하기) -->
     <!-- 좁아져도 패널이 '줄어들어 깨지는' 대신, 최소폭 이하에서는 가로 스크롤 -->
     <div class="overflow-x-auto">
-      <div
-        class="grid min-w-[1280px] grid-cols-[minmax(720px,1fr)_320px_360px] gap-3"
-      >
+      <!-- 요청: 모든(차트/호가/주문하기) 패널을 동일한 비율(동일 폭)로 -->
+      <div class="grid min-w-[1200px] grid-cols-3 gap-3">
       <!-- 차트 -->
       <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between gap-2">
