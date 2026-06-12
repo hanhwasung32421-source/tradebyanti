@@ -40,9 +40,13 @@
     </div>
 
     <!-- 메인 영역 (차트 / 호가 / 주문하기) -->
-    <div class="flex flex-col gap-3 xl:flex-row">
+    <!-- 좁아져도 패널이 '줄어들어 깨지는' 대신, 최소폭 이하에서는 가로 스크롤 -->
+    <div class="overflow-x-auto">
+      <div
+        class="grid min-w-[1280px] grid-cols-[minmax(720px,1fr)_320px_360px] gap-3"
+      >
       <!-- 차트 -->
-      <section class="flex-1 rounded-xl border border-white/10 bg-white/5 p-3">
+      <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between gap-2">
           <div class="text-sm font-semibold">차트</div>
           <div class="flex items-center gap-2 text-xs">
@@ -70,7 +74,7 @@
             <button class="rounded-md bg-white/10 px-2 py-1 hover:bg-white/15" @click="reloadCandles">새로고침</button>
           </div>
         </div>
-        <div class="mt-3 h-[520px] w-full overflow-hidden rounded-lg bg-black/40">
+        <div class="mt-3 h-[560px] w-full overflow-hidden rounded-lg bg-black/40">
           <ClientOnly>
             <TradingViewWidget
               v-if="chartMode === 'tradingview'"
@@ -83,7 +87,7 @@
       </section>
 
       <!-- 호가 -->
-      <section class="w-full rounded-xl border border-white/10 bg-white/5 p-3 xl:w-[360px]">
+      <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between">
           <div class="text-sm font-semibold">호가</div>
           <button class="rounded-md bg-white/10 px-2 py-1 text-xs hover:bg-white/15" @click="reconnect">재연결</button>
@@ -95,8 +99,10 @@
           <div class="text-right">총 금액</div>
         </div>
 
+        <div class="mt-2 h-[560px] rounded-lg bg-black/20 p-2">
+          <div class="h-full overflow-y-auto">
         <!-- 매도 -->
-        <div class="mt-1 space-y-1">
+        <div class="space-y-1">
           <div
             v-for="a in asks"
             :key="a[0]"
@@ -109,7 +115,7 @@
         </div>
 
         <!-- 현재가 -->
-        <div class="my-2 rounded-md bg-black/30 px-3 py-2 text-center font-mono text-sm">
+        <div class="my-2 rounded-md bg-black/30 px-3 py-2 text-center font-mono text-sm ring-1 ring-white/10">
           {{ lastPrice ? fmtPrice(lastPrice) : '—' }}
         </div>
 
@@ -125,10 +131,12 @@
             <div class="text-right text-slate-400">{{ fmtNum(Number(b[0]) * Number(b[1])) }}</div>
           </div>
         </div>
+          </div>
+        </div>
       </section>
 
       <!-- 주문하기 -->
-      <section class="w-full rounded-xl border border-white/10 bg-white/5 p-3 xl:w-[360px]">
+      <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between">
           <div class="text-sm font-semibold">주문하기</div>
           <div class="flex items-center gap-2 text-xs">
@@ -168,7 +176,8 @@
           주문하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.
         </div>
 
-        <form v-else class="mt-4 space-y-3" @submit.prevent="openPosition">
+        <div class="mt-3 h-[560px] rounded-lg bg-black/20 p-3">
+        <form v-if="me" class="space-y-3" @submit.prevent="openPosition">
           <div>
             <div class="flex items-center justify-between text-xs text-slate-400">
               <span>가격</span>
@@ -237,8 +246,21 @@
 
           <p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
           <p v-if="tradeMsg" class="text-sm text-emerald-300">{{ tradeMsg }}</p>
+          <div class="mt-4 rounded-lg bg-black/30 p-3 text-xs text-slate-300 ring-1 ring-white/10">
+            <div class="font-semibold text-slate-200">보유자산</div>
+            <div class="mt-2 space-y-1">
+              <div class="flex justify-between"><span>USDT</span><span class="font-mono">{{ balance.toFixed(2) }}</span></div>
+              <div class="flex justify-between"><span>미체결 주문</span><span class="font-mono">0</span></div>
+              <div class="flex justify-between"><span>포지션</span><span class="font-mono">{{ positions.length }}</span></div>
+            </div>
+          </div>
         </form>
+        <div v-else class="rounded-lg bg-black/20 p-3 text-sm text-slate-300">
+          주문하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.
+        </div>
+        </div>
       </section>
+      </div>
     </div>
 
     <!-- 하단: 포지션 테이블 -->
@@ -291,7 +313,7 @@
 <script setup lang="ts">
 import { createChart, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
 
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({ middleware: ['auth'], layout: 'trading' })
 
 const route = useRoute()
 const router = useRouter()
