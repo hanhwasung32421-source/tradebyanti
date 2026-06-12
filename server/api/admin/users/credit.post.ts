@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { requireAdmin } from '../../../utils/auth'
 import { getDb } from '../../../utils/db'
+import { logAdminCredit } from '../../../utils/supa-log'
 
 const BodySchema = z.object({
   userId: z.number().int().positive(),
@@ -19,6 +20,6 @@ export default defineEventHandler(async (event) => {
   db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(body.userId, 0)
   db.prepare('UPDATE balances SET usdt = usdt + ? WHERE user_id = ?').run(body.amount, body.userId)
 
+  await logAdminCredit({ adminUserId: admin.id, userId: body.userId, amount: body.amount })
   return { ok: true }
 })
-

@@ -76,6 +76,12 @@ bun run dev
 ## 데이터 저장
 
 - SQLite 파일: `data/app.db` (프로젝트 폴더 내부)
+- Supabase(자동 저장): `SUPABASE_EXTRA_TABLES.sql`를 Supabase SQL Editor에서 실행 후 사용
+
+## Supabase 연결(anon)
+
+- URL: `https://dyfycrmltqosezmsufup.supabase.co`
+- anon key: `nuxt.config.ts`의 `public.supabaseAnonKey` 사용 (환경변수 `SUPABASE_ANON_KEY`로 덮어쓸 수 있음)
 
 ## GitHub 자동 푸시
 

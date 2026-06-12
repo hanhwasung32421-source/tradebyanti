@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { getDb } from '../../utils/db'
 import { createSession, hashPassword } from '../../utils/auth'
+import { logAppUser, logLogin } from '../../utils/supa-log'
 
 const BodySchema = z.object({
   username: z.string().min(3).max(20),
@@ -27,6 +28,7 @@ export default defineEventHandler(async (event) => {
   db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(user.id, 0)
 
   createSession(event, user.id)
+  await logAppUser({ id: user.id, username: body.username, role: 'user' })
+  await logLogin(event, { userId: user.id, username: body.username, area: 'main', success: true })
   return { ok: true }
 })
-
