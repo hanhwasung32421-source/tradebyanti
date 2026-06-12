@@ -77,8 +77,10 @@
           <ClientOnly>
             <TradingViewWidget
               v-if="chartMode === 'tradingview'"
+              :key="tvSymbol + ':' + tvInterval"
               :symbol="tvSymbol"
               :interval="tvInterval"
+              :entry-lines="tvEntryLines"
             />
             <div v-else ref="chartEl" class="h-full w-full" />
           </ClientOnly>
@@ -322,22 +324,46 @@
               <th class="py-2">포지션</th>
               <th class="py-2">수량</th>
               <th class="py-2">진입가격</th>
+              <th class="py-2">시장가</th>
+              <th class="py-2">강제청산가격</th>
               <th class="py-2">증거금</th>
+              <th class="py-2">미실현손익(ROE)</th>
               <th class="py-2">Close</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="positions.length === 0" class="border-t border-white/10">
-              <td colspan="6" class="py-3 text-slate-400">데이터가 없습니다.</td>
+              <td colspan="9" class="py-3 text-slate-400">데이터가 없습니다.</td>
             </tr>
             <tr v-for="p in positions" :key="p.id" class="border-t border-white/10">
-              <td class="py-2 font-mono">{{ p.symbol }}</td>
-              <td class="py-2" :class="p.side === 'long' ? 'text-emerald-300' : 'text-rose-300'">
-                {{ p.side.toUpperCase() }} x{{ p.leverage }}
+              <td class="py-2">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-[10px] ring-1 ring-amber-400/40">
+                    {{ p.symbol?.slice(0, 1) }}
+                  </span>
+                  <span class="font-mono">{{ p.symbol }}</span>
+                  <span class="rounded bg-white/10 px-2 py-0.5 font-mono text-[10px] ring-1 ring-white/10">x{{ p.leverage }}</span>
+                </div>
               </td>
-              <td class="py-2 font-mono">{{ Number(p.qty).toFixed(6) }}</td>
+              <td class="py-2" :class="p.side === 'long' ? 'text-emerald-300' : 'text-rose-300'">
+                <span class="rounded px-2 py-1 text-[10px] ring-1"
+                  :class="p.side === 'long' ? 'bg-emerald-500/10 ring-emerald-400/30' : 'bg-rose-500/10 ring-rose-400/30'">
+                  {{ p.side === 'long' ? '롱' : '숏' }}
+                </span>
+              </td>
+              <td class="py-2 font-mono">{{ fmtQty(p.symbol, p.qty) }}</td>
               <td class="py-2 font-mono">{{ fmtPrice(Number(p.entry_price)) }}</td>
+              <td class="py-2 font-mono">{{ lastPrice ? fmtPrice(lastPrice) : '—' }}</td>
+              <td class="py-2 font-mono">{{ fmtPrice(calcLiqPrice(p)) }}</td>
               <td class="py-2 font-mono">{{ Number(p.margin).toFixed(2) }}</td>
+              <td class="py-2">
+                <div class="font-mono" :class="unrealized(p).pnl >= 0 ? 'text-emerald-300' : 'text-rose-300'">
+                  {{ unrealized(p).pnl >= 0 ? '+' : '' }}{{ unrealized(p).pnl.toFixed(2) }}
+                </div>
+                <div class="text-[10px] text-slate-400">
+                  {{ unrealized(p).roe >= 0 ? '+' : '' }}{{ unrealized(p).roe.toFixed(2) }}%
+                </div>
+              </td>
               <td class="py-2">
                 <div class="flex items-center gap-2">
                   <button class="rounded-md bg-white/10 px-2 py-1 ring-1 ring-white/10 hover:bg-white/15" @click="closePosition(p.id)">
@@ -433,6 +459,14 @@ const tvInterval = computed(() => {
   return '15'
 })
 
+const tvEntryLines = computed(() => {
+  // TradingView 위젯이 지원하는 경우 진입 라인 전달
+  return (positions.value || []).map((p: any) => ({
+    price: Number(p.entry_price),
+    side: p.side === 'short' ? 'short' : 'long'
+  }))
+})
+
 function fmtPrice(v: number) {
   if (!Number.isFinite(v)) return '—'
   // DOGE 같이 작은 값 대비
@@ -442,6 +476,33 @@ function fmtPrice(v: number) {
 function fmtNum(v: number) {
   if (!Number.isFinite(v)) return '—'
   return v.toLocaleString(undefined, { maximumFractionDigits: 2 })
+}
+
+function fmtQty(sym: string, qty: number) {
+  const s = String(sym || '').toUpperCase()
+  if (s.startsWith('DOGE')) return Number(qty).toFixed(2)
+  return Number(qty).toFixed(6)
+}
+
+function calcLiqPrice(p: any) {
+  const entry = Number(p.entry_price)
+  const lev = Number(p.leverage || 1)
+  if (!Number.isFinite(entry) || !Number.isFinite(lev) || lev <= 0) return 0
+  // 데모용 근사치
+  if (p.side === 'short') return entry * (1 + 1 / lev)
+  return entry * (1 - 1 / lev)
+}
+
+function unrealized(p: any) {
+  const mark = Number(lastPrice.value ?? 0)
+  const entry = Number(p.entry_price)
+  const qty = Number(p.qty)
+  const margin = Number(p.margin || 0)
+  if (![mark, entry, qty].every(Number.isFinite)) return { pnl: 0, roe: 0 }
+  const raw = (mark - entry) * qty
+  const pnl = p.side === 'short' ? -raw : raw
+  const roe = margin > 0 ? (pnl / margin) * 100 : 0
+  return { pnl, roe }
 }
 
 const maxVolumeText = computed(() => {
@@ -700,12 +761,6 @@ async function openPosition() {
   error.value = null
   tradeMsg.value = null
   try {
-    // 체결 후 진입가 라인을 보여주기 위해 기본차트로 전환
-    chartMode.value = 'built'
-    await nextTick()
-    initChart()
-    await fetchCandles().catch(() => {})
-
     await $fetch('/api/trade/open', {
       method: 'POST',
       body: {
