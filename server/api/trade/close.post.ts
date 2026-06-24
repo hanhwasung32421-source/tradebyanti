@@ -26,9 +26,10 @@ export default defineEventHandler(async (event) => {
   const pnlRaw = (exit - pos.entry_price) * pos.qty
   const pnl = pos.side === 'long' ? pnlRaw : -pnlRaw
 
-  // 잔고: 증거금 반환 + 손익 반영
+  // 잔고: 증거금 반환 + 손익 반영 - 수수료 반영
+  const fee = pos.qty * exit * 0.0004
   db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(user.id, 0)
-  db.prepare('UPDATE balances SET usdt = usdt + ? WHERE user_id = ?').run(pos.margin + pnl, user.id)
+  db.prepare('UPDATE balances SET usdt = usdt + ? WHERE user_id = ?').run(pos.margin + pnl - fee, user.id)
 
   db.prepare('DELETE FROM positions WHERE id = ? AND user_id = ?').run(pos.id, user.id)
 
@@ -46,6 +47,29 @@ export default defineEventHandler(async (event) => {
     new Date().toISOString()
   )
 
-  return { ok: true, exitPrice: exit, pnl }
+  db.prepare(
+    'INSERT INTO executions (user_id, symbol, side, price, qty, fee, pnl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(
+    user.id,
+    pos.symbol,
+    pos.side === 'long' ? 'SELL' : 'BUY',
+    exit,
+    pos.qty,
+    fee,
+    pnl,
+    new Date().toISOString()
+  )
+
+  return {
+    ok: true,
+    symbol: pos.symbol,
+    side: pos.side,
+    leverage: pos.leverage,
+    qty: pos.qty,
+    entryPrice: pos.entry_price,
+    exitPrice: exit,
+    pnl,
+    fee
+  }
 })
 

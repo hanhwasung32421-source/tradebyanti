@@ -84,6 +84,18 @@ export function getDb() {
       note TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS executions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      symbol TEXT NOT NULL,
+      side TEXT NOT NULL,
+      price REAL NOT NULL,
+      qty REAL NOT NULL,
+      fee REAL NOT NULL,
+      pnl REAL NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `)
 
   // 총관리자 기본 계정 생성: admin / 1121
