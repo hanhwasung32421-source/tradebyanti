@@ -31,10 +31,10 @@ export default defineNuxtConfig({
     public: {
       appName: 'Exchange Demo',
       appVersion: process.env.APP_VERSION || getAppVersion(),
-      supabaseUrl: process.env.SUPABASE_URL || 'https://dyfycrmltqosezmsufup.supabase.co',
+      supabaseUrl: process.env.SUPABASE_URL || 'https://axcppzioyedwfvtvmilr.supabase.co',
       supabaseAnonKey:
         process.env.SUPABASE_ANON_KEY ||
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5Znljcm1sdHFvc2V6bXN1ZnVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMzg4MDIsImV4cCI6MjA5NTYxNDgwMn0.VpJCBdD1g8YZiaa6Zah9ZKIu3ydu_RkSgWCdEXe2QGw'
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4Y3BwemlveWVkd2Z2dHZtaWxyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNDE0ODAsImV4cCI6MjA5NTYxNzQ4MH0.R2dcCJoyBxgW6dzUSP0j8eJX3fMzCBxynda-AKu6aaw'
     }
   }
 })
