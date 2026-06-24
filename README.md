@@ -92,7 +92,7 @@ bun run dev
 
 원격 저장소:
 
-- `https://github.com/hanhwasung32421-source/usdetrade.git`
+- `https://github.com/hanhwasung32421-source/tradebyanti.git`
 
 한 번만 푸시:
 

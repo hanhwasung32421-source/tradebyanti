@@ -7,7 +7,7 @@ $ErrorActionPreference = "Continue"
 if (-not (Test-Path ".git")) {
   git init
   git branch -M main
-  git remote add origin 'https://github.com/hanhwasung32421-source/usdetrade.git'
+  git remote add origin 'https://github.com/hanhwasung32421-source/tradebyanti.git'
 }
 
 Write-Host "자동 푸시 감시 시작. 중지하려면 Ctrl + C"
