@@ -9,7 +9,8 @@
     <div class="grid gap-4 md:grid-cols-3">
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div class="text-sm text-slate-400">보유 자산 (USDT)</div>
-        <div class="mt-1 font-mono text-3xl font-semibold text-indigo-400">{{ fmtPrice(balance) }} USDT</div>
+        <div v-if="loading" class="mt-3 h-8 w-36 animate-pulse rounded bg-white/10"></div>
+        <div v-else class="mt-1 font-mono text-3xl font-semibold text-indigo-400">{{ fmtPrice(balance) }} USDT</div>
       </div>
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div class="text-sm text-slate-400">가상 입금</div>
@@ -39,10 +40,18 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="positions.length === 0" class="border-t border-white/10">
+            <tr v-if="loading" class="border-t border-white/10">
+              <td colspan="7" class="py-6 text-center text-slate-400">
+                <div class="flex items-center justify-center gap-2">
+                  <div class="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
+                  <span>지갑 정보를 불러오는 중...</span>
+                </div>
+              </td>
+            </tr>
+            <tr v-else-if="positions.length === 0" class="border-t border-white/10">
               <td colspan="7" class="py-4 text-center text-slate-400">보유 중인 포지션이 없습니다.</td>
             </tr>
-            <tr v-for="p in positions" :key="p.id" class="border-t border-white/5 hover:bg-white/5 font-mono text-slate-300">
+            <tr v-else v-for="p in positions" :key="p.id" class="border-t border-white/5 hover:bg-white/5 font-mono text-slate-300">
               <td class="py-3 font-bold">{{ formatSymbol(p.symbol) }}</td>
               <td class="py-3">
                 <span class="rounded px-1.5 py-0.5 text-[10px] ring-1"
@@ -75,11 +84,19 @@ definePageMeta({ middleware: ['auth'] })
 
 const balance = ref(0)
 const positions = ref<any[]>([])
+const loading = ref(true)
 
 async function loadData() {
-  const data = await $fetch<any>('/api/account')
-  balance.value = data.balance.usdt
-  positions.value = data.positions
+  loading.value = true
+  try {
+    const data = await $fetch<any>('/api/account')
+    balance.value = data.balance?.usdt ?? 0
+    positions.value = data.positions || []
+  } catch (e) {
+    console.error('Failed to load account data:', e)
+  } finally {
+    loading.value = false
+  }
 }
 
 async function closePosition(positionId: number) {
@@ -112,5 +129,7 @@ function fmtPrice(v: number) {
   return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
 
-await loadData()
+onMounted(() => {
+  loadData()
+})
 </script>

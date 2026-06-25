@@ -261,7 +261,7 @@
               <input
                 v-model.number="percent"
                 type="range"
-                :min="orderType === 'limit' ? 1 : 0"
+                min="1"
                 max="100"
                 step="1"
                 class="mt-2 w-full"
@@ -1120,15 +1120,21 @@ function selectOrderType(t: 'market' | 'limit' | 'trigger') {
   orderType.value = t
   tradeMsg.value = null
   error.value = null
-  // 요구사항:
-  // - 시장가: 누르면 바로 정리(입력값 초기화)
-  // - 지정가: 가격 기본값=현재가, 비중 기본값=100%
-  if (t === 'market') {
-    percent.value = 0
-    if (lastPrice.value) limitPrice.value = lastPrice.value
-  } else if (t === 'limit') {
-    percent.value = 100
-    if (lastPrice.value) limitPrice.value = lastPrice.value
+  if (lastPrice.value) limitPrice.value = lastPrice.value
+
+  // 비중 유지 및 로드
+  if (percent.value <= 0 || percent.value > 100) {
+    if (process.client) {
+      const pctKey = me.value ? `futures_percent_${me.value.username}` : 'futures_percent'
+      const savedPercent = localStorage.getItem(pctKey)
+      if (savedPercent) {
+        percent.value = parseInt(savedPercent) || 100
+      } else {
+        percent.value = 100
+      }
+    } else {
+      percent.value = 100
+    }
   }
 }
 
@@ -1170,10 +1176,7 @@ async function openPosition() {
     tradeMsg.value = '포지션이 오픈되었습니다.'
     await loadAccount()
 
-    // 시장가 탭은 오픈 후 다시 "정리" 상태로
-    if (orderType.value === 'market') {
-      percent.value = 0
-    }
+    // 비중을 유지합니다.
   } catch (e: any) {
     error.value = e?.data?.statusMessage || '오픈 실패'
   } finally {
@@ -1236,7 +1239,7 @@ onMounted(async () => {
     }
     const savedPercent = localStorage.getItem(pctKey)
     if (savedPercent) {
-      percent.value = parseInt(savedPercent) || 0
+      percent.value = parseInt(savedPercent) || 100
     }
   }
 })

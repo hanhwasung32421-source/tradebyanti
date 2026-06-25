@@ -326,11 +326,9 @@ export async function seedAdmin() {
     const { data: balance, error: balError } = await supa.from('anti_balances').select('usdt').eq('user_id', adminId).maybeSingle()
     if (balError) return
     
-    const seedAdminUsdt = Number(process.env.SEED_ADMIN_USDT ?? '10000')
     if (!balance) {
+      const seedAdminUsdt = Number(process.env.SEED_ADMIN_USDT ?? '10000')
       await supa.from('anti_balances').insert({ user_id: adminId, usdt: seedAdminUsdt })
-    } else if (balance.usdt < seedAdminUsdt) {
-      await supa.from('anti_balances').update({ usdt: seedAdminUsdt }).eq('user_id', adminId)
     }
   } catch (e: any) {
     console.warn('[Supabase Seeding Catch]', e?.message || e)
