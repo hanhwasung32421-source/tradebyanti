@@ -98,8 +98,8 @@ export function getDb() {
     );
   `)
 
-  // 총관리자 기본 계정 생성: admin / 1121
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get('admin') as
+  // 총관리자 기본 계정 생성: 관리자 / 1121
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get('관리자') as
     | { id?: number }
     | undefined
 
@@ -107,17 +107,17 @@ export function getDb() {
     const passwordHash = bcrypt.hashSync('1121', 10)
     db.prepare(
       'INSERT INTO users (username, password_hash, role, permissions, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run('admin', passwordHash, 'super_admin', JSON.stringify({ all: true, canCredit: true }), nowIso())
+    ).run('관리자', passwordHash, 'super_admin', JSON.stringify({ all: true, canCredit: true }), nowIso())
 
-    const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin') as { id: number }
+    const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('관리자') as { id: number }
     db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(admin.id, 0)
   }
 
-  // 데모 기본값: 총관리자(admin) USDT를 최소 10000으로 유지
+  // 데모 기본값: 총관리자(관리자) USDT를 최소 10000으로 유지
   // (배포 환경에서 SQLite 파일이 초기화되더라도 admin이 항상 거래 가능한 상태가 되도록)
   const seedAdminUsdt = Number(process.env.SEED_ADMIN_USDT ?? '10000')
   if (Number.isFinite(seedAdminUsdt) && seedAdminUsdt > 0) {
-    const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin') as { id: number } | undefined
+    const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('관리자') as { id: number } | undefined
     if (admin?.id) {
       db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(admin.id, seedAdminUsdt)
       db.prepare('UPDATE balances SET usdt = CASE WHEN usdt < ? THEN ? ELSE usdt END WHERE user_id = ?').run(

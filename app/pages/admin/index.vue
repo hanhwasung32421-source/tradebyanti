@@ -1,46 +1,65 @@
 <template>
-  <div class="space-y-6">
-    <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h1 class="text-xl font-semibold">관리자 대시보드</h1>
+  <div class="space-y-6 max-w-4xl mx-auto py-4">
+    <!-- Card 1: Admin Dashboard -->
+    <div class="rounded-2xl border border-white/5 bg-[#0f1423] p-6 shadow-xl">
+      <h1 class="text-xl font-bold tracking-tight text-white">관리자 대시보드</h1>
       <p class="mt-2 text-sm text-slate-400">
         유저 목록 확인, 가상 USDT 입금, (추후) 지사 계정 생성/권한 제어를 여기서 확장합니다.
       </p>
-      <div class="mt-4 flex flex-wrap gap-2">
-        <NuxtLink to="/admin/users" class="rounded-md bg-white/10 px-4 py-2 text-sm hover:bg-white/15">유저/입금 관리</NuxtLink>
+      <div class="mt-4">
+        <NuxtLink to="/admin/users" class="inline-block rounded-lg bg-[#1b2236] hover:bg-[#232b44] text-slate-200 px-4 py-2.5 text-sm font-semibold transition border border-white/5">
+          유저/입금 관리
+        </NuxtLink>
       </div>
     </div>
 
-    <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <div class="text-sm text-slate-400">현재 로그인</div>
-      <div class="mt-1 font-medium">{{ me?.username }} ({{ me?.role }})</div>
+    <!-- Card 2: Logged In Account -->
+    <div class="rounded-2xl border border-white/5 bg-[#0f1423] p-6 shadow-xl">
+      <div class="text-sm text-slate-400 font-medium">현재 로그인</div>
+      <div class="mt-2 font-mono text-base font-semibold text-slate-200">{{ me?.username }} ({{ me?.role }})</div>
     </div>
 
-    <div v-if="me?.role === 'super_admin'" class="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 class="font-semibold">지사(관리자) 계정 생성</h2>
+    <!-- Card 3: Branch creation (super_admin only) -->
+    <div v-if="me?.role === 'super_admin'" class="rounded-2xl border border-white/5 bg-[#0f1423] p-6 shadow-xl">
+      <h2 class="font-bold text-lg text-white">지사(관리자) 계정 생성</h2>
       <p class="mt-1 text-sm text-slate-400">총관리자만 생성 가능. 권한에 따라 메뉴/기능을 제한할 수 있게 확장합니다.</p>
 
-      <form class="mt-4 grid gap-3 sm:grid-cols-3" @submit.prevent="createBranch">
+      <form class="mt-6 grid gap-4 sm:grid-cols-3 items-end" @submit.prevent="createBranch">
         <div>
-          <label class="text-sm text-slate-300">지사 아이디</label>
-          <input v-model.trim="bUser" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-indigo-500" />
+          <label class="text-sm text-slate-300 font-medium">지사 아이디</label>
+          <input 
+            v-model.trim="bUser" 
+            placeholder="admin"
+            class="mt-1.5 w-full rounded-lg bg-[#e8efff] text-slate-900 px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 font-sans border border-slate-300" 
+          />
         </div>
         <div>
-          <label class="text-sm text-slate-300">비밀번호</label>
-          <input v-model="bPass" type="password" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-indigo-500" />
+          <label class="text-sm text-slate-300 font-medium">비밀번호</label>
+          <input 
+            v-model="bPass" 
+            type="password" 
+            placeholder="••••"
+            class="mt-1.5 w-full rounded-lg bg-[#e8efff] text-slate-900 px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 font-sans border border-slate-300" 
+          />
         </div>
-        <div class="flex items-end">
-          <button class="w-full rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400" :disabled="creating">
+        <div>
+          <button 
+            class="w-full rounded-lg bg-[#5352ed] hover:bg-[#3d3ce3] py-2.5 text-sm font-semibold text-white transition duration-150 shadow-md h-[44px] flex items-center justify-center" 
+            :disabled="creating"
+          >
             생성
           </button>
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-slate-300 sm:col-span-3">
-          <input v-model="canCredit" type="checkbox" class="h-4 w-4" />
-          가상 입금 권한(canCredit)
-        </label>
+        <div class="sm:col-span-3 mt-1">
+          <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+            <input v-model="canCredit" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+            가상 입금 권한(canCredit)
+          </label>
+        </div>
       </form>
-      <p v-if="msg" class="mt-3 text-sm text-emerald-300">{{ msg }}</p>
-      <p v-if="err" class="mt-3 text-sm text-rose-300">{{ err }}</p>
+      <p v-if="msg" class="mt-3 text-sm text-emerald-300 font-medium">{{ msg }}</p>
+      <p v-if="err" class="mt-3 text-sm text-rose-300 font-medium">{{ err }}</p>
     </div>
   </div>
 </template>

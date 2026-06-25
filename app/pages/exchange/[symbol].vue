@@ -322,39 +322,48 @@
 
     <!-- 하단: 포지션 테이블 -->
     <section class="rounded-xl border border-white/10 bg-white/5 p-3">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2 text-sm font-semibold">
+      <!-- Tabs Header -->
+      <div class="flex items-center justify-between gap-3 border-b border-white/10 pb-2 mb-3">
+        <div class="flex flex-wrap gap-2 text-xs font-semibold">
           <button
             type="button"
-            class="rounded-md px-4 py-2 ring-1"
-            :class="bottomTab === 'positions' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+            class="rounded-md px-3 py-1.5 transition"
+            :class="bottomTab === 'positions' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'"
             @click="bottomTab = 'positions'"
           >
-            포지션
+            포지션 ({{ positions.length }})
           </button>
           <button
             type="button"
-            class="rounded-md px-4 py-2 text-xs ring-1"
-            :class="bottomTab === 'limit' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
-            @click="bottomTab = 'limit'"
+            class="rounded-md px-3 py-1.5 text-slate-600 cursor-not-allowed bg-black/20"
+            disabled
           >
-            지정가 (0)
+            카피 중인 매매 (0)
           </button>
           <button
             type="button"
-            class="rounded-md px-4 py-2 text-xs ring-1"
-            :class="bottomTab === 'trigger' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
-            @click="bottomTab = 'trigger'"
+            class="rounded-md px-3 py-1.5 transition"
+            :class="bottomTab === 'trades' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'"
+            @click="bottomTab = 'trades'"
           >
-            예약 (0)
+            거래내역 ({{ trades?.length || 0 }})
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-3 py-1.5 transition"
+            :class="bottomTab === 'executions' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'"
+            @click="onSelectExecutionsTab"
+          >
+            체결내역
           </button>
         </div>
-        <button class="rounded-md bg-white/10 px-3 py-2 text-xs hover:bg-white/15" @click="loadAccount">새로고침</button>
+        <button class="rounded-md bg-white/10 px-3 py-1.5 text-xs hover:bg-white/15 transition" @click="refreshActiveTab">새로고침</button>
       </div>
 
+      <!-- Tab Contents: Positions -->
       <div class="mt-3 overflow-auto" v-if="bottomTab === 'positions'">
         <table class="w-full text-xs">
-          <thead class="text-slate-400">
+          <thead class="text-slate-400 border-b border-white/10">
             <tr class="text-left">
               <th class="py-2">코인</th>
               <th class="py-2">포지션</th>
@@ -369,44 +378,41 @@
           </thead>
           <tbody>
             <tr v-if="positions.length === 0" class="border-t border-white/10">
-              <td colspan="9" class="py-3 text-slate-400">데이터가 없습니다.</td>
+              <td colspan="9" class="py-3 text-slate-400 text-center">데이터가 없습니다.</td>
             </tr>
-            <tr v-for="p in positions" :key="p.id" class="border-t border-white/10">
-              <td class="py-2">
+            <tr v-for="p in positions" :key="p.id" class="border-t border-white/5 hover:bg-white/5 font-mono text-slate-300">
+              <td class="py-2.5">
                 <div class="flex items-center gap-2">
                   <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-[10px] ring-1 ring-amber-400/40">
                     {{ p.symbol?.slice(0, 1) }}
                   </span>
-                  <span class="font-mono">{{ p.symbol }}</span>
+                  <span class="font-mono font-bold">{{ formatSymbol(p.symbol) }}</span>
                   <span class="rounded bg-white/10 px-2 py-0.5 font-mono text-[10px] ring-1 ring-white/10">x{{ p.leverage }}</span>
                 </div>
               </td>
-              <td class="py-2" :class="p.side === 'long' ? 'text-emerald-300' : 'text-rose-300'">
+              <td class="py-2.5" :class="p.side === 'long' ? 'text-emerald-300' : 'text-rose-300'">
                 <span class="rounded px-2 py-1 text-[10px] ring-1"
                   :class="p.side === 'long' ? 'bg-emerald-500/10 ring-emerald-400/30' : 'bg-rose-500/10 ring-rose-400/30'">
-                  {{ p.side === 'long' ? '롱' : '숏' }}
+                  {{ p.side === 'long' ? 'LONG' : 'SHORT' }}
                 </span>
               </td>
-              <td class="py-2 font-mono">{{ fmtQty(p.symbol, p.qty) }}</td>
-              <td class="py-2 font-mono">{{ fmtPrice(Number(p.entry_price)) }}</td>
-              <td class="py-2 font-mono">{{ lastPrice ? fmtPrice(lastPrice) : '—' }}</td>
-              <td class="py-2 font-mono">{{ fmtPrice(calcLiqPrice(p)) }}</td>
-              <td class="py-2 font-mono">{{ Number(p.margin).toFixed(2) }}</td>
-              <td class="py-2">
-                <div class="font-mono" :class="unrealized(p).pnl >= 0 ? 'text-emerald-300' : 'text-rose-300'">
-                  {{ unrealized(p).pnl >= 0 ? '+' : '' }}{{ unrealized(p).pnl.toFixed(2) }}
+              <td class="py-2.5">{{ fmtQty(p.symbol, p.qty) }}</td>
+              <td class="py-2.5">{{ fmtPrice(Number(p.entry_price)) }}</td>
+              <td class="py-2.5">{{ lastPrice ? fmtPrice(lastPrice) : '—' }}</td>
+              <td class="py-2.5">{{ fmtPrice(calcLiqPrice(p)) }}</td>
+              <td class="py-2.5">{{ Number(p.margin).toFixed(2) }} USDT</td>
+              <td class="py-2.5">
+                <div class="font-mono font-bold" :class="unrealized(p).pnl >= 0 ? 'text-emerald-300' : 'text-rose-300'">
+                  {{ unrealized(p).pnl >= 0 ? '+' : '' }}{{ unrealized(p).pnl.toFixed(2) }} USDT
                 </div>
-                <div class="text-[10px] text-slate-400">
+                <div class="text-[10px] text-slate-400 font-mono">
                   {{ unrealized(p).roe >= 0 ? '+' : '' }}{{ unrealized(p).roe.toFixed(2) }}%
                 </div>
               </td>
-              <td class="py-2">
+              <td class="py-2.5">
                 <div class="flex items-center gap-2">
-                  <button class="rounded-md bg-white/10 px-2 py-1 ring-1 ring-white/10 hover:bg-white/15" @click="closePosition(p.id)">
-                    지정가
-                  </button>
-                  <button class="rounded-md bg-white/10 px-2 py-1 ring-1 ring-white/10 hover:bg-white/15" @click="closePosition(p.id)">
-                    시장가
+                  <button class="rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 border border-amber-500/20 transition" @click="closePosition(p.id)">
+                    시장가 청산
                   </button>
                 </div>
               </td>
@@ -414,10 +420,142 @@
           </tbody>
         </table>
       </div>
-      <div v-else class="mt-3 rounded-lg bg-black/20 p-4 text-sm text-slate-400">
-        준비중입니다.
+
+      <!-- Tab Contents: Trades -->
+      <div v-else-if="bottomTab === 'trades'" class="mt-3 overflow-auto max-h-[300px] pr-1">
+        <table class="w-full text-xs">
+          <thead class="text-slate-400 border-b border-white/10">
+            <tr class="text-left">
+              <th class="py-2">시간</th>
+              <th class="py-2">종목</th>
+              <th class="py-2 text-center">방향</th>
+              <th class="py-2 text-right">수량</th>
+              <th class="py-2 text-right">진입가</th>
+              <th class="py-2 text-right">청산가</th>
+              <th class="py-2 text-right">레버리지</th>
+              <th class="py-2 text-right">실현손익</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!trades || trades.length === 0" class="border-t border-white/10 text-slate-400">
+              <td colspan="8" class="py-3 text-center">거래내역이 없습니다.</td>
+            </tr>
+            <tr v-for="t in trades" :key="t.id" class="border-t border-white/5 hover:bg-white/5 font-mono text-slate-300">
+              <td class="py-2.5 text-slate-400">{{ formatTime(t.created_at) }}</td>
+              <td class="py-2.5 font-semibold text-slate-200">{{ formatSymbol(t.symbol) }}</td>
+              <td class="py-2.5 text-center">
+                <span :class="t.side === 'long' ? 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20' : 'bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20'" class="px-2 py-0.5 rounded text-[10px] font-bold">
+                  {{ t.side === 'long' ? 'LONG' : 'SHORT' }}
+                </span>
+              </td>
+              <td class="py-2.5 text-right">{{ fmtQty(t.symbol, t.qty) }}</td>
+              <td class="py-2.5 text-right">{{ fmtPrice(t.entry_price) }}</td>
+              <td class="py-2.5 text-right">{{ fmtPrice(t.exit_price) }}</td>
+              <td class="py-2.5 text-right">{{ t.leverage }}x</td>
+              <td class="py-2.5 text-right font-semibold" :class="t.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                {{ t.pnl >= 0 ? '+' : '' }}{{ t.pnl.toFixed(2) }} USDT
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab Contents: Executions -->
+      <div v-else-if="bottomTab === 'executions'" class="mt-3 overflow-y-auto max-h-[300px] pr-1 space-y-2" @scroll="onExecutionsScroll">
+        <table class="w-full text-xs text-left border-collapse">
+          <thead>
+            <tr class="text-slate-400 border-b border-white/10">
+              <th class="py-2">시간</th>
+              <th class="py-2">종목</th>
+              <th class="py-2 text-center">방향</th>
+              <th class="py-2 text-right">체결가</th>
+              <th class="py-2 text-right">수량</th>
+              <th class="py-2 text-right">수수료</th>
+              <th class="py-2 text-right">실현손익</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="executions.length === 0" class="text-slate-400 border-t border-white/10">
+              <td colspan="7" class="py-3 text-center">체결내역이 없습니다.</td>
+            </tr>
+            <tr v-for="ex in executions" :key="ex.id" class="border-b border-white/5 hover:bg-white/5 font-mono text-slate-300">
+              <td class="py-2.5 text-slate-400">{{ formatTime(ex.created_at) }}</td>
+              <td class="py-2.5 font-semibold text-slate-200">{{ formatSymbol(ex.symbol) }}</td>
+              <td class="py-2.5 text-center">
+                <span :class="ex.side === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'" class="px-2 py-0.5 rounded text-[10px] font-bold">
+                  {{ ex.side }}
+                </span>
+              </td>
+              <td class="py-2.5 text-right font-semibold text-slate-200">{{ fmtPrice(ex.price) }}</td>
+              <td class="py-2.5 text-right text-slate-200">{{ fmtQty(ex.symbol, ex.qty) }}</td>
+              <td class="py-2.5 text-right text-slate-400">{{ ex.fee.toFixed(6) }} USDT</td>
+              <td class="py-2.5 text-right font-bold" :class="ex.pnl > 0 ? 'text-emerald-400' : ex.pnl < 0 ? 'text-rose-400' : 'text-slate-500'">
+                {{ ex.pnl > 0 ? '+' : '' }}{{ ex.pnl !== 0 ? ex.pnl.toFixed(4) + ' USDT' : '0 USDT' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="loadingExecutions" class="text-center text-xs text-slate-500 py-3 font-mono">불러오는 중...</div>
       </div>
     </section>
+  </div>
+
+  <!-- Premium Close Result Modal Card -->
+  <div v-if="isCloseModalOpen && closeModalData" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md px-4" @click.self="closeCloseModal">
+    <div class="relative w-full max-w-sm rounded-3xl p-8 overflow-hidden shadow-2xl border border-white/10 transition duration-300" 
+         :class="closeModalData.pnl >= 0 ? 'bg-gradient-to-b from-[#0d382f] via-[#05211b] to-[#021310] shadow-emerald-950/30' : 'bg-gradient-to-b from-[#4a131b] via-[#2c0b10] to-[#140407] shadow-rose-950/30'">
+      
+      <!-- Background decorative blobs -->
+      <div class="absolute -top-10 -left-10 w-40 h-40 rounded-full blur-3xl opacity-20" :class="closeModalData.pnl >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></div>
+      <div class="absolute -bottom-10 -right-10 w-40 h-40 rounded-full blur-3xl opacity-20" :class="closeModalData.pnl >= 0 ? 'bg-teal-400' : 'bg-rose-500'"></div>
+
+      <!-- Close Button -->
+      <button class="absolute top-5 right-5 text-white/50 hover:text-white text-xl transition font-sans" @click="closeCloseModal">
+        ✕
+      </button>
+
+      <!-- ROI & PNL Header -->
+      <div class="text-left space-y-1">
+        <div class="text-4xl font-bold tracking-tight" :class="closeModalData.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+          {{ calculateRoe(closeModalData) }}
+        </div>
+        <div class="text-2xl font-bold font-mono" :class="closeModalData.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+          {{ formatPnlWon(closeModalData.pnl) }}
+        </div>
+        <div class="text-sm text-white/60 font-mono">
+          ({{ closeModalData.pnl >= 0 ? '+' : '' }}{{ closeModalData.pnl.toFixed(2) }} USDT)
+        </div>
+      </div>
+
+      <!-- Detail Table -->
+      <div class="mt-8 space-y-4 border-t border-white/10 pt-6 text-left">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-white/40">코인</div>
+          <div class="mt-0.5 text-base font-semibold">
+            {{ formatSymbol(closeModalData.symbol) }}
+            <span :class="closeModalData.side === 'long' ? 'text-emerald-400' : 'text-rose-400'" class="ml-1 text-sm font-bold">
+              {{ closeModalData.side.toUpperCase() }}
+            </span>
+          </div>
+        </div>
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-white/40">레버리지</div>
+          <div class="mt-0.5 text-base font-semibold">{{ closeModalData.leverage }}x</div>
+        </div>
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-white/40">진입가격</div>
+          <div class="mt-0.5 text-base font-mono font-medium text-white/90">{{ fmtPrice(closeModalData.entryPrice) }}</div>
+        </div>
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-white/40">종료가격</div>
+          <div class="mt-0.5 text-base font-mono font-medium text-white/90">{{ fmtPrice(closeModalData.exitPrice) }}</div>
+        </div>
+      </div>
+
+      <div class="mt-8 text-center text-[10px] text-white/30 uppercase tracking-widest font-mono">
+        Virtual USDT Trading Result
+      </div>
+    </div>
   </div>
 </template>
 
@@ -879,11 +1017,99 @@ function reconnect() {
   connectWs()
 }
 
+const trades = ref<any[]>([])
+const executions = ref<any[]>([])
+const executionsLimit = 20
+const executionsOffset = ref(0)
+const hasMoreExecutions = ref(true)
+const loadingExecutions = ref(false)
+
+const isCloseModalOpen = ref(false)
+const closeModalData = ref<any>(null)
+
+function showCloseModal(data: any) {
+  closeModalData.value = data
+  isCloseModalOpen.value = true
+}
+
+function closeCloseModal() {
+  isCloseModalOpen.value = false
+  closeModalData.value = null
+}
+
+function calculateRoe(data: any) {
+  const diff = data.side === 'long' 
+    ? (data.exitPrice - data.entryPrice)
+    : (data.entryPrice - data.exitPrice);
+  const percent = (diff / data.entryPrice) * data.leverage * 100;
+  return `${percent >= 0 ? '+' : ''}${percent.toFixed(2)}%`;
+}
+
+function formatPnlWon(pnl: number) {
+  const krw = Math.round(pnl * 1400); // 1 USDT = 1400 KRW
+  return `${krw >= 0 ? '+' : ''}${krw.toLocaleString()} WON`;
+}
+
+function formatSymbol(sym: string) {
+  return sym.replace('-USDT-SWAP', '').replace('USDT', '') + '/USDT';
+}
+
+function formatTime(isoStr: string) {
+  if (!isoStr) return '';
+  return isoStr.replace('T', ' ').slice(0, 19);
+}
+
+async function loadExecutions(reset = false) {
+  if (!me.value) return
+  if (reset) {
+    executionsOffset.value = 0
+    executions.value = []
+    hasMoreExecutions.value = true
+  }
+  if (!hasMoreExecutions.value || loadingExecutions.value) return
+
+  loadingExecutions.value = true
+  try {
+    const data = await $fetch<any>('/api/executions', {
+      query: { limit: executionsLimit, offset: executionsOffset.value }
+    })
+    if (data.executions.length < executionsLimit) {
+      hasMoreExecutions.value = false
+    }
+    executions.value = [...executions.value, ...data.executions]
+    executionsOffset.value += data.executions.length
+  } catch (err) {
+    console.error('Failed to load executions:', err)
+  } finally {
+    loadingExecutions.value = false
+  }
+}
+
+function onExecutionsScroll(e: Event) {
+  const el = e.target as HTMLElement
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 20) {
+    loadExecutions()
+  }
+}
+
+function onSelectExecutionsTab() {
+  bottomTab.value = 'executions'
+  loadExecutions(true)
+}
+
+async function refreshActiveTab() {
+  await loadAccount()
+  if (bottomTab.value === 'executions') {
+    await loadExecutions(true)
+  }
+}
+
 async function loadAccount() {
   if (!me.value) return
   const data = await $fetch<any>('/api/account')
   balance.value = data.balance.usdt
-  positions.value = data.positions.filter((p: any) => p.symbol === symbol.value)
+  positions.value = data.positions
+  trades.value = data.trades
 
   if (chartMode.value === 'built') {
     renderEntryLines()
@@ -959,7 +1185,7 @@ async function closePosition(positionId: number) {
   tradeMsg.value = null
   try {
     const res = await $fetch<any>('/api/trade/close', { method: 'POST', body: { positionId } })
-    tradeMsg.value = `청산 완료 · PnL ${res.pnl >= 0 ? '+' : ''}${Number(res.pnl).toFixed(2)} USDT`
+    showCloseModal(res)
     await loadAccount()
   } catch (e: any) {
     error.value = e?.data?.statusMessage || '청산 실패'
