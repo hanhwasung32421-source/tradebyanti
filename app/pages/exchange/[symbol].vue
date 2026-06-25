@@ -76,7 +76,7 @@
         <div class="mt-2 h-[560px] rounded-lg bg-black/20 p-2">
           <div class="h-full overflow-y-hidden">
             <!-- 매도(위) -->
-            <div class="space-y-1.5">
+            <div class="space-y-[3px]">
               <div
                 v-for="(r, idx) in askRows"
                 :key="'a' + idx"
@@ -103,7 +103,7 @@
             </div>
 
             <!-- 매수(아래) -->
-            <div class="space-y-1.5">
+            <div class="space-y-[3px]">
               <div
                 v-for="(r, idx) in bidRows"
                 :key="'b' + idx"
