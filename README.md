@@ -73,10 +73,11 @@ bun run dev
 - 가상 USDT 입금(잔고 증가): `/admin/users`에서 사용자별 입금
 - 지사 관리자 계정 생성(총관리자만): `/admin` 하단 “지사 계정 생성”
 
-## 데이터 저장
+## 데이터 저장 (데이터 초기화 방지)
 
-- SQLite 파일: `data/app.db` (프로젝트 폴더 내부)
-- Supabase(자동 저장): `SUPABASE_EXTRA_TABLES.sql`를 Supabase SQL Editor에서 실행 후 사용
+- **SQLite 파일 기본 경로**: 사용자 홈 디렉토리(`~/.exchange-demo-data/app.db` 또는 `C:\Users\유저명\.exchange-demo-data\app.db`)에 영구 보존됩니다. 프로젝트 폴더를 새로 클론하거나 업데이트하여 지워도 홈 디렉토리의 데이터베이스 파일은 삭제되지 않고 안전하게 유지됩니다.
+- **Docker 배포 시 데이터 보존**: Docker/Railway/Render 등 컨테이너 환경에서는 컨테이너 재배포 시 데이터가 증발하므로, 호스트 시스템의 볼륨을 바인딩하고 환경변수 `SQLITE_DIR`을 해당 마운트 경로(예: `/data`)로 지정해 주셔야 합니다.
+- **Supabase 백업**: `SUPABASE_EXTRA_TABLES.sql`를 Supabase SQL Editor에서 실행 후 연동하면 로그인/회원가입/거래 로그 등의 주요 정보가 실시간으로 Supabase에 자동 삽입(백업)됩니다.
 
 ## 관리자 기본 잔고(데모)
 

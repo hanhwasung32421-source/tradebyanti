@@ -13,14 +13,38 @@ function nowIso() {
 export function getDb() {
   if (_db) return _db
 
-  // 배포 환경(서버리스 등)에서는 프로젝트 폴더가 read-only인 경우가 있어
-  // 우선순위: SQLITE_DIR 환경변수 -> 프로젝트/data -> OS 임시폴더
-  let dataDir = process.env.SQLITE_DIR || join(process.cwd(), 'data')
-  try {
-    mkdirSync(dataDir, { recursive: true })
-  } catch {
-    dataDir = join(os.tmpdir(), 'exchange-demo-data')
-    mkdirSync(dataDir, { recursive: true })
+  // 배포 환경(서버리스 등) 및 프로젝트 폴더 업데이트 대응을 위한 경로 설정
+  // 우선순위: 
+  // 1. SQLITE_DIR 환경변수 (컨테이너 볼륨 바인딩 시 사용)
+  // 2. 사용자 홈 디렉토리 (~/.exchange-demo-data) - 프로젝트 폴더가 삭제/재배포되어도 데이터 유지
+  // 3. 프로젝트 폴더 내부 (data/)
+  // 4. OS 임시 폴더
+  let dataDir = process.env.SQLITE_DIR
+  if (!dataDir) {
+    try {
+      dataDir = join(os.homedir(), '.exchange-demo-data')
+      mkdirSync(dataDir, { recursive: true })
+    } catch {
+      try {
+        dataDir = join(process.cwd(), 'data')
+        mkdirSync(dataDir, { recursive: true })
+      } catch {
+        dataDir = join(os.tmpdir(), 'exchange-demo-data')
+        mkdirSync(dataDir, { recursive: true })
+      }
+    }
+  } else {
+    try {
+      mkdirSync(dataDir, { recursive: true })
+    } catch {
+      try {
+        dataDir = join(os.homedir(), '.exchange-demo-data')
+        mkdirSync(dataDir, { recursive: true })
+      } catch {
+        dataDir = join(os.tmpdir(), 'exchange-demo-data')
+        mkdirSync(dataDir, { recursive: true })
+      }
+    }
   }
 
   const dbPath = join(dataDir, 'app.db')
