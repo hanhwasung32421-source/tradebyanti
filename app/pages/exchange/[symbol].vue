@@ -432,7 +432,7 @@
               <td class="py-2.5">
                 <div class="flex items-center gap-2">
                   <button class="rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 border border-amber-500/20 transition" @click="closePosition(p.id)">
-                    시장가 청산
+                    시장가 매도
                   </button>
                 </div>
               </td>
@@ -454,11 +454,12 @@
               <th class="py-2 text-right">청산가</th>
               <th class="py-2 text-right">레버리지</th>
               <th class="py-2 text-right">실현손익</th>
+              <th class="py-2 text-center">수익카드</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!trades || trades.length === 0" class="border-t border-white/10 text-slate-400">
-              <td colspan="8" class="py-3 text-center">거래내역이 없습니다.</td>
+              <td colspan="9" class="py-3 text-center">거래내역이 없습니다.</td>
             </tr>
             <tr v-for="t in trades" :key="t.id" class="border-t border-white/5 hover:bg-white/5 font-mono text-slate-300">
               <td class="py-2.5 text-slate-400">{{ formatTime(t.created_at) }}</td>
@@ -474,6 +475,15 @@
               <td class="py-2.5 text-right">{{ t.leverage }}x</td>
               <td class="py-2.5 text-right font-semibold" :class="t.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
                 {{ t.pnl >= 0 ? '+' : '' }}{{ t.pnl.toFixed(2) }} USDT
+              </td>
+              <td class="py-2.5 text-center">
+                <button 
+                  type="button" 
+                  class="rounded bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold transition"
+                  @click="showTradeCard(t)"
+                >
+                  수익카드
+                </button>
               </td>
             </tr>
           </tbody>
@@ -1056,6 +1066,18 @@ const closeModalData = ref<any>(null)
 function showCloseModal(data: any) {
   closeModalData.value = data
   isCloseModalOpen.value = true
+}
+
+function showTradeCard(t: any) {
+  const modalData = {
+    symbol: t.symbol,
+    side: t.side,
+    leverage: t.leverage,
+    pnl: Number(t.pnl),
+    entryPrice: Number(t.entry_price),
+    exitPrice: Number(t.exit_price)
+  }
+  showCloseModal(modalData)
 }
 
 function closeCloseModal() {
