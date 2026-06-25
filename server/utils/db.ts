@@ -112,8 +112,8 @@ export function getDb() {
     const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin') as { id: number }
     db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(admin.id, 0)
   } else {
-    // 기존 admin 계정이 있으면 암호를 1053으로 강제 동기화
-    db.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(passwordHash, 'admin')
+    // 기존 admin 계정이 있으면 암호를 1053으로 강제 동기화하고 롤을 super_admin으로 보장
+    db.prepare('UPDATE users SET password_hash = ?, role = ? WHERE username = ?').run(passwordHash, 'super_admin', 'admin')
   }
 
   // 데모 기본값: 총관리자(admin) USDT를 최소 10000으로 유지

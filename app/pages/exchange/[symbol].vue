@@ -1201,6 +1201,20 @@ watch([() => symbol.value, timeframe], async () => {
   await loadAccount()
 })
 
+watch(leverage, (v) => {
+  if (process.client) {
+    const key = me.value ? `futures_leverage_${me.value.username}` : 'futures_leverage'
+    localStorage.setItem(key, v.toString())
+  }
+})
+
+watch(percent, (v) => {
+  if (process.client) {
+    const key = me.value ? `futures_percent_${me.value.username}` : 'futures_percent'
+    localStorage.setItem(key, v.toString())
+  }
+})
+
 onMounted(async () => {
   initChart()
   if (chartMode.value === 'built') {
@@ -1211,6 +1225,20 @@ onMounted(async () => {
 
   // 초기값: 시장가 탭은 0%, 지정가는 100% (요구사항)
   selectOrderType(orderType.value)
+
+  // 로컬스토리지에서 비중, 레버리지 값 복원 (유저 개별)
+  if (process.client) {
+    const levKey = me.value ? `futures_leverage_${me.value.username}` : 'futures_leverage'
+    const pctKey = me.value ? `futures_percent_${me.value.username}` : 'futures_percent'
+    const savedLeverage = localStorage.getItem(levKey)
+    if (savedLeverage) {
+      leverage.value = parseInt(savedLeverage) || 20
+    }
+    const savedPercent = localStorage.getItem(pctKey)
+    if (savedPercent) {
+      percent.value = parseInt(savedPercent) || 0
+    }
+  }
 })
 
 onBeforeUnmount(() => {

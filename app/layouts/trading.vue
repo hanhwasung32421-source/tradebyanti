@@ -12,6 +12,7 @@
           <NuxtLink to="/wallet" class="rounded-md px-3 py-1 hover:bg-white/10">내 지갑</NuxtLink>
           <NuxtLink to="/invest/balance" class="rounded-md px-3 py-1 hover:bg-white/10">투자내역</NuxtLink>
           <NuxtLink to="/support" class="rounded-md px-3 py-1 hover:bg-white/10">고객센터</NuxtLink>
+          <NuxtLink v-if="me && (me.role === 'super_admin' || me.role === 'branch_admin')" to="/admin" class="rounded-md px-3 py-1 hover:bg-white/10">관리자</NuxtLink>
         </nav>
 
         <div class="flex items-center gap-2 text-sm">
