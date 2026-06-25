@@ -17,7 +17,7 @@
       </button>
       <p v-if="error" class="text-sm text-red-300">{{ error }}</p>
       <p class="text-xs text-slate-500">
-        기본 총관리자 계정: <span class="font-mono">관리자</span> / <span class="font-mono">1121</span>
+        기본 총관리자 계정: <span class="font-mono">admin</span> / <span class="font-mono">1053</span>
       </p>
     </form>
   </div>
@@ -25,8 +25,8 @@
 
 <script setup lang="ts">
 const { refresh } = useMe()
-const username = ref('관리자')
-const password = ref('1121')
+const username = ref('admin')
+const password = ref('1053')
 const loading = ref(false)
 const error = ref<string | null>(null)
 
