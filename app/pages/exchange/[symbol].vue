@@ -63,7 +63,7 @@
       <!-- 오더북(첨부 스타일) -->
       <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between">
-          <div class="text-sm font-semibold">오더북</div>
+          <div class="text-sm font-semibold">호가창</div>
           <button class="rounded-md bg-white/10 px-2 py-1 text-xs hover:bg-white/15" @click="reconnect">재연결</button>
         </div>
 
@@ -74,13 +74,13 @@
         </div>
 
         <div class="mt-2 h-[560px] rounded-lg bg-black/20 p-2">
-          <div class="h-full overflow-y-auto">
+          <div class="h-full overflow-y-hidden">
             <!-- 매도(위) -->
-            <div class="space-y-1">
+            <div class="space-y-1.5">
               <div
                 v-for="(r, idx) in askRows"
                 :key="'a' + idx"
-                class="grid h-7 grid-cols-3 items-center gap-2 font-mono text-xs"
+                class="grid h-8 grid-cols-3 items-center gap-2 font-mono text-xs"
               >
                 <div class="text-slate-200">{{ r ? fmtPrice(r.price) : '—' }}</div>
                 <div class="relative overflow-hidden rounded-sm bg-rose-600/80 px-2 py-1 text-center text-slate-100">
@@ -103,11 +103,11 @@
             </div>
 
             <!-- 매수(아래) -->
-            <div class="space-y-1">
+            <div class="space-y-1.5">
               <div
                 v-for="(r, idx) in bidRows"
                 :key="'b' + idx"
-                class="grid h-7 grid-cols-3 items-center gap-2 font-mono text-xs"
+                class="grid h-8 grid-cols-3 items-center gap-2 font-mono text-xs"
               >
                 <div class="text-slate-200">{{ r ? fmtPrice(r.price) : '—' }}</div>
                 <div class="relative overflow-hidden rounded-sm bg-emerald-600/80 px-2 py-1 text-center text-slate-100">
@@ -754,23 +754,23 @@ function getBidPricesDesc(limit = 200) {
 function initDisplayFromMaps() {
   const asksAsc = getAskPricesAsc(300)
   const bidsDesc = getBidPricesDesc(300)
-  // asks는 best ask부터 위로 8개를 뽑고(낮은→높은), 화면은 높은→낮은
-  askDisplay.value = asksAsc.slice(0, 8).reverse()
-  // bids는 높은→낮은 그대로 7개
-  bidDisplay.value = bidsDesc.slice(0, 7)
+  // asks는 best ask부터 위로 6개를 뽑고(낮은→높은), 화면은 높은→낮은
+  askDisplay.value = asksAsc.slice(0, 6).reverse()
+  // bids는 높은→낮은 그대로 6개
+  bidDisplay.value = bidsDesc.slice(0, 6)
 }
 
 function refreshDisplayIfNeeded() {
   // 가격 라더는 가급적 유지하고, "수량이 0이 되어 삭제된 가격"이 화면에 있으면 그때만 재구성
   const askMissing = askDisplay.value.some((p) => !obAsks.value.has(p))
   const bidMissing = bidDisplay.value.some((p) => !obBids.value.has(p))
-  if (askMissing || askDisplay.value.length !== 8) {
+  if (askMissing || askDisplay.value.length !== 6) {
     const asksAsc = getAskPricesAsc(300)
-    askDisplay.value = asksAsc.slice(0, 8).reverse()
+    askDisplay.value = asksAsc.slice(0, 6).reverse()
   }
-  if (bidMissing || bidDisplay.value.length !== 7) {
+  if (bidMissing || bidDisplay.value.length !== 6) {
     const bidsDesc = getBidPricesDesc(300)
-    bidDisplay.value = bidsDesc.slice(0, 7)
+    bidDisplay.value = bidsDesc.slice(0, 6)
   }
 }
 
@@ -807,8 +807,8 @@ function buildRowsFromDisplay(side: 'ask' | 'bid', count: number): Array<DepthRo
   return rows
 }
 
-const askRows = computed(() => buildRowsFromDisplay('ask', 8))
-const bidRows = computed(() => buildRowsFromDisplay('bid', 7))
+const askRows = computed(() => buildRowsFromDisplay('ask', 6))
+const bidRows = computed(() => buildRowsFromDisplay('bid', 6))
 
 const buyPct = computed(() => {
   // 화면에 보이는 수량 합 기준
