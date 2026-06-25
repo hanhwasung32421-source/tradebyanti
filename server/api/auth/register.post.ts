@@ -4,12 +4,19 @@ import { createSession, hashPassword } from '../../utils/auth'
 import { logAppUser, logLogin } from '../../utils/supa-log'
 
 const BodySchema = z.object({
-  username: z.string().min(3).max(20),
+  username: z.string().min(2).max(20),
   password: z.string().min(4).max(50)
 })
 
 export default defineEventHandler(async (event) => {
-  const body = BodySchema.parse(await readBody(event))
+  const parsed = BodySchema.safeParse(await readBody(event))
+  if (!parsed.success) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: '아이디는 2~20자, 비밀번호는 4자 이상이어야 합니다.'
+    })
+  }
+  const body = parsed.data
 
   const exists = await getDbUser(body.username)
   if (exists?.id) {

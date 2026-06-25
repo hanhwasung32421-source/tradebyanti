@@ -7,7 +7,7 @@
       <div>
         <label class="text-sm text-slate-300">아이디</label>
         <input v-model.trim="username" class="mt-1 w-full rounded-lg bg-white/5 px-3 py-2 outline-none ring-1 ring-white/10 focus:ring-indigo-500" />
-        <p class="mt-1 text-xs text-slate-500">3~20자</p>
+        <p class="mt-1 text-xs text-slate-500">2~20자</p>
       </div>
       <div>
         <label class="text-sm text-slate-300">비밀번호</label>

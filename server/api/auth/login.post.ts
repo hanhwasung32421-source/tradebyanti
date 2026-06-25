@@ -9,7 +9,14 @@ const BodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const body = BodySchema.parse(await readBody(event))
+  const parsed = BodySchema.safeParse(await readBody(event))
+  if (!parsed.success) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: '아이디와 비밀번호를 입력해주세요.'
+    })
+  }
+  const body = parsed.data
 
   const user = await getDbUser(body.username)
 
