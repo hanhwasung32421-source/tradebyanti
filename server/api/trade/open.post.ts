@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { requireUser } from '../../utils/auth'
-import { getDb } from '../../utils/db'
+import { getDbBalance, incrementDbBalance, createDbPosition, createDbExecution } from '../../utils/db'
 import { getOkxLastPrice } from '../../utils/okx'
 import { logBuy } from '../../utils/supa-log'
 
@@ -14,37 +14,40 @@ const BodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const user = requireUser(event)
+  const user = await requireUser(event)
   const body = BodySchema.parse(await readBody(event))
-  const db = getDb()
 
-  db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(user.id, 0)
-  const bal = db.prepare('SELECT usdt FROM balances WHERE user_id = ?').get(user.id) as { usdt: number }
+  const usdt = await getDbBalance(user.id)
 
   const entry = body.price ?? (await getOkxLastPrice(body.symbol)).last
   const qty = (body.margin * body.leverage) / entry
   const fee = body.margin * body.leverage * 0.0004
 
-  if (bal.usdt < body.margin + fee) {
+  if (usdt < body.margin + fee) {
     throw createError({ statusCode: 400, statusMessage: '잔고가 부족합니다 (수수료 포함).' })
   }
 
-  db.prepare('UPDATE balances SET usdt = usdt - ? WHERE user_id = ?').run(body.margin + fee, user.id)
-  db.prepare(
-    'INSERT INTO positions (user_id, symbol, side, qty, entry_price, leverage, margin, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(user.id, body.symbol.toUpperCase(), body.side, qty, entry, body.leverage, body.margin, new Date().toISOString())
+  // Deduct margin and fee
+  await incrementDbBalance(user.id, -(body.margin + fee))
 
-  db.prepare(
-    'INSERT INTO executions (user_id, symbol, side, price, qty, fee, pnl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(
+  await createDbPosition(
+    user.id,
+    body.symbol.toUpperCase(),
+    body.side,
+    qty,
+    entry,
+    body.leverage,
+    body.margin
+  )
+
+  await createDbExecution(
     user.id,
     body.symbol.toUpperCase(),
     body.side === 'long' ? 'BUY' : 'SELL',
     entry,
     qty,
     fee,
-    0.0,
-    new Date().toISOString()
+    0.0
   )
 
   await logBuy({

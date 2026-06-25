@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getDb } from '../../utils/db'
+import { getDbUser } from '../../utils/db'
 import { createSession, verifyPassword } from '../../utils/auth'
 import { logLogin } from '../../utils/supa-log'
 
@@ -10,11 +10,8 @@ const BodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event))
-  const db = getDb()
 
-  const user = db
-    .prepare('SELECT id, password_hash, role FROM users WHERE username = ?')
-    .get(body.username) as { id: number; password_hash: string; role: string } | undefined
+  const user = await getDbUser(body.username)
 
   if (!user || !verifyPassword(body.password, user.password_hash)) {
     await logLogin(event, { userId: user?.id ?? null, username: body.username, area: 'admin', success: false })
@@ -25,7 +22,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: '관리자 계정이 아닙니다.' })
   }
 
-  createSession(event, user.id)
+  await createSession(event, user.id)
   await logLogin(event, { userId: user.id, username: body.username, area: 'admin', success: true })
   return { ok: true }
 })

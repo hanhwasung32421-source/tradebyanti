@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { requireAdmin } from '../../../utils/auth'
-import { getDb } from '../../../utils/db'
+import { updateDbUserRole } from '../../../utils/db'
 
 const BodySchema = z.object({
   userId: z.number().int().positive(),
@@ -14,9 +14,8 @@ const BodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const admin = requireAdmin(event)
+  const admin = await requireAdmin(event)
   const body = BodySchema.parse(await readBody(event))
-  const db = getDb()
 
   // 부어드민으로 등업할 때 기본 권한 부여
   const perms = body.permissions || (body.role === 'branch_admin' 
@@ -25,11 +24,7 @@ export default defineEventHandler(async (event) => {
       ? { all: true, canCredit: true } 
       : {});
 
-  db.prepare('UPDATE users SET role = ?, permissions = ? WHERE id = ?').run(
-    body.role,
-    JSON.stringify(perms),
-    body.userId
-  )
+  await updateDbUserRole(body.userId, body.role, JSON.stringify(perms))
 
   return { ok: true }
 })

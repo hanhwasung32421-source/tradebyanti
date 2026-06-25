@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { requireUser } from '../../utils/auth'
-import { getDb } from '../../utils/db'
+import { getDbPositionById, incrementDbBalance, deleteDbPosition, createDbTrade, createDbExecution } from '../../utils/db'
 import { getOkxLastPrice } from '../../utils/okx'
 
 const BodySchema = z.object({
@@ -8,15 +8,10 @@ const BodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const user = requireUser(event)
+  const user = await requireUser(event)
   const body = BodySchema.parse(await readBody(event))
-  const db = getDb()
 
-  const pos = db
-    .prepare('SELECT * FROM positions WHERE id = ? AND user_id = ?')
-    .get(body.positionId, user.id) as
-    | { id: number; symbol: string; side: string; qty: number; entry_price: number; leverage: number; margin: number }
-    | undefined
+  const pos = await getDbPositionById(body.positionId, user.id)
 
   if (!pos) throw createError({ statusCode: 404, statusMessage: '포지션을 찾을 수 없습니다.' })
 
@@ -28,14 +23,11 @@ export default defineEventHandler(async (event) => {
 
   // 잔고: 증거금 반환 + 손익 반영 - 수수료 반영
   const fee = pos.qty * exit * 0.0004
-  db.prepare('INSERT OR IGNORE INTO balances (user_id, usdt) VALUES (?, ?)').run(user.id, 0)
-  db.prepare('UPDATE balances SET usdt = usdt + ? WHERE user_id = ?').run(pos.margin + pnl - fee, user.id)
+  await incrementDbBalance(user.id, pos.margin + pnl - fee)
 
-  db.prepare('DELETE FROM positions WHERE id = ? AND user_id = ?').run(pos.id, user.id)
+  await deleteDbPosition(pos.id, user.id)
 
-  db.prepare(
-    'INSERT INTO trades (user_id, symbol, side, qty, entry_price, exit_price, leverage, pnl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(
+  await createDbTrade(
     user.id,
     pos.symbol,
     pos.side,
@@ -43,21 +35,17 @@ export default defineEventHandler(async (event) => {
     pos.entry_price,
     exit,
     pos.leverage,
-    pnl,
-    new Date().toISOString()
+    pnl
   )
 
-  db.prepare(
-    'INSERT INTO executions (user_id, symbol, side, price, qty, fee, pnl, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(
+  await createDbExecution(
     user.id,
     pos.symbol,
     pos.side === 'long' ? 'SELL' : 'BUY',
     exit,
     pos.qty,
     fee,
-    pnl,
-    new Date().toISOString()
+    pnl
   )
 
   return {
@@ -72,4 +60,3 @@ export default defineEventHandler(async (event) => {
     fee
   }
 })
-
