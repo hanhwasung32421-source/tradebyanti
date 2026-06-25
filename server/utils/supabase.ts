@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js'
 
 export function getSupabaseAdminClient() {
   const config = useRuntimeConfig()
-  const url = config.public.supabaseUrl as string
-  const key = config.public.supabaseAnonKey as string
-  // anon 키 기반: 데모용(보안상 production에서는 service role 권장)
+  const url = process.env.SUPABASE_URL || (config.public.supabaseUrl as string)
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || (config.public.supabaseAnonKey as string)
+  
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false }
   })
