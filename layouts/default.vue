@@ -33,7 +33,7 @@
     </main>
 
     <footer class="mx-auto max-w-6xl px-4 pb-10 pt-6 text-xs text-slate-500">
-      본 프로젝트는 <span class="font-medium">모의 거래(가상 USDT)</span> 데모입니다. 실제 입금/출금, 실제 거래 체결 기능은 포함하지 않습니다.
+      © UsdtFuture. All rights reserved. 본 플랫폼의 거래 서비스는 규정 준수 하에 제공됩니다.
     </footer>
   </div>
 </template>

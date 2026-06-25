@@ -29,7 +29,7 @@ export default defineNuxtConfig({
     // 서버 전용
     sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
     public: {
-      appName: 'Exchange Demo',
+      appName: 'UsdtFuture',
       appVersion: process.env.APP_VERSION || getAppVersion(),
       supabaseUrl: process.env.SUPABASE_URL || 'https://dyfycrmltqosezmsufup.supabase.co',
       supabaseAnonKey:

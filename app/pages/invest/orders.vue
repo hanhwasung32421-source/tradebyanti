@@ -4,7 +4,7 @@
 
     <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
       <h2 class="font-semibold">선물 주문 내역</h2>
-      <p class="mt-2 text-sm text-slate-400">데모에서는 “오픈 포지션”을 주문 내역처럼 보여줍니다.</p>
+      <p class="mt-2 text-sm text-slate-400">현재 선물 계정에서 실시간으로 진입한 주문 및 오픈 포지션 내역입니다.</p>
 
       <div class="mt-4 overflow-auto">
         <table class="w-full text-xs">

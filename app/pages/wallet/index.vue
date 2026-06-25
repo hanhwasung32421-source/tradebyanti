@@ -2,23 +2,23 @@
   <div class="space-y-6">
     <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
       <h1 class="text-xl font-semibold">내 지갑</h1>
-      <p class="mt-2 text-sm text-slate-400">가상 USDT 잔고와 잡은 포지션을 모니터링할 수 있습니다.</p>
+      <p class="mt-2 text-sm text-slate-400">선물 자산 잔고와 진입한 포지션을 모니터링할 수 있습니다.</p>
     </div>
 
     <!-- 잔고 카드 -->
     <div class="grid gap-4 md:grid-cols-3">
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div class="text-sm text-slate-400">보유 자산 (USDT)</div>
+        <div class="text-sm text-slate-400">선물 계정 잔고 (USDT)</div>
         <div v-if="loading" class="mt-3 h-8 w-36 animate-pulse rounded bg-white/10"></div>
         <div v-else class="mt-1 font-mono text-3xl font-semibold text-indigo-400">{{ fmtPrice(balance) }} USDT</div>
       </div>
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <div class="text-sm text-slate-400">가상 입금</div>
-        <div class="mt-1 text-sm text-slate-200">관리자 페이지에서 USDT 잔고를 직접 변경할 수 있습니다.</div>
+        <div class="text-sm text-slate-400">입금 서비스</div>
+        <div class="mt-1 text-sm text-slate-200">USDT 입금은 관리자 또는 고객센터를 통해 입금 요청을 접수하실 수 있습니다.</div>
       </div>
       <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div class="text-sm text-slate-400">출금 서비스</div>
-        <div class="mt-1 text-sm text-slate-200">데모 환경이므로 출금 기능은 준비 중입니다.</div>
+        <div class="mt-1 text-sm text-slate-200">출금 서비스는 자산 관리 메뉴를 통해 신청 및 신속 승인이 가능합니다.</div>
       </div>
     </div>
 

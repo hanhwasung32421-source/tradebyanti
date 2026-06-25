@@ -2,11 +2,11 @@
   <div class="space-y-6">
     <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
       <h1 class="text-xl font-semibold">내 계정</h1>
-      <p class="mt-2 text-sm text-slate-400">가상 USDT 잔고 및 모의 포지션/거래내역</p>
+      <p class="mt-2 text-sm text-slate-400">USDT 잔고 및 보유 포지션/거래내역</p>
 
       <div class="mt-4 grid gap-3 sm:grid-cols-3">
         <div class="rounded-xl bg-black/20 p-4">
-          <div class="text-xs text-slate-400">가상 잔고 (USDT)</div>
+          <div class="text-xs text-slate-400">선물 잔고 (USDT)</div>
           <div class="mt-1 font-mono text-2xl">{{ balance.toFixed(2) }}</div>
         </div>
         <div class="rounded-xl bg-black/20 p-4">

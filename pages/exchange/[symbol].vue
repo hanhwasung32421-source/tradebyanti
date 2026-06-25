@@ -4,7 +4,7 @@
       <div>
         <h1 class="text-xl font-semibold">{{ symbol }}</h1>
         <p class="mt-1 text-sm text-slate-400">
-          OKX 공개 시세 기반 (차트/호가) · 모의체결(가상 USDT)
+          실시간 시세 차트 및 Perpetual 거래 시스템
         </p>
       </div>
       <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
@@ -49,8 +49,8 @@
 
     <div class="grid gap-6 lg:grid-cols-3">
       <section class="rounded-2xl border border-white/10 bg-white/5 p-5 lg:col-span-1">
-        <h2 class="font-semibold">모의체결</h2>
-        <p class="mt-1 text-sm text-slate-400">증거금(USDT) + 레버리지로 포지션을 오픈합니다.</p>
+        <h2 class="font-semibold">Perpetual 거래</h2>
+        <p class="mt-1 text-sm text-slate-400">선물 증거금(USDT)과 레버리지 설정을 바탕으로 포지션을 오픈합니다.</p>
 
         <div v-if="!me" class="mt-4 rounded-xl bg-black/20 p-4 text-sm text-slate-300">
           거래하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.

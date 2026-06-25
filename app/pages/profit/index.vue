@@ -63,7 +63,7 @@
             </div>
             <div v-if="c.note" class="mt-3 text-sm text-slate-300">{{ c.note }}</div>
             <div class="mt-4 text-xs text-slate-500">
-              “가상 USDT 모의거래 결과” (실거래 아님)
+              “UsdtFuture Perpetual Trading Result”
             </div>
           </div>
         </div>
