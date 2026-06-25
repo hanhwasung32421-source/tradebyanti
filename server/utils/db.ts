@@ -235,7 +235,27 @@ export async function getDbProfitCards(userId: number, limit = 50) {
     trades:anti_trades(symbol, side, qty, pnl, entry_price, exit_price)
   `).eq('user_id', userId).order('id', { ascending: false }).limit(limit)
   
-  if (error) throw error
+  if (error) {
+    console.warn('[getDbProfitCards Error - Fallback triggered]', error.message)
+    const { data: fallbackData } = await supa.from('anti_profit_cards')
+      .select('*')
+      .eq('user_id', userId)
+      .order('id', { ascending: false })
+      .limit(limit)
+    return (fallbackData || []).map((pc: any) => ({
+      id: pc.id,
+      title: pc.title,
+      note: pc.note,
+      created_at: pc.created_at,
+      symbol: '',
+      side: '',
+      qty: 0,
+      pnl: 0,
+      entry_price: 0,
+      exit_price: 0
+    }))
+  }
+  
   return (data || []).map((pc: any) => {
     const t = Array.isArray(pc.trades) ? pc.trades[0] : pc.trades
     return {

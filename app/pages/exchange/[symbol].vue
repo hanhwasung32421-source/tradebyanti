@@ -1141,25 +1141,9 @@ async function openPosition() {
   if (!me.value) return
   if (orderType.value === 'trigger') return
 
-  if (!percent.value || percent.value <= 0) {
-    error.value = '비중을 1~100%로 설정해주세요.'
-    return
-  }
-
-  if (balance.value <= 0) {
-    error.value = '사용 가능한 잔고가 없습니다.'
-    return
-  }
-
   const m = Number(marginUsdt.value)
   if (!Number.isFinite(m) || m <= 0) {
-    error.value = '비중을 다시 설정해주세요.'
-    return
-  }
-
-  const fee = m * leverage.value * 0.0004
-  if (balance.value < m + fee) {
-    error.value = '잔고가 부족합니다 (수수료 포함).'
+    error.value = '비중을 1~100%로 설정해주세요.'
     return
   }
 
