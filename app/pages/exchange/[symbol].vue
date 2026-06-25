@@ -171,16 +171,12 @@
               </span>
             </div>
 
-            <!-- Margin Mode Button -->
+            <!-- Margin Mode Button (격리 고정) -->
             <div 
-              class="flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer hover:opacity-90 transition"
-              :class="marginMode === 'Isolated' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'"
-              @click="toggleMarginMode"
+              class="flex items-center justify-between rounded-lg border px-3 py-2 bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
             >
-              <span class="text-xs font-semibold" :class="marginMode === 'Isolated' ? 'text-emerald-400' : 'text-indigo-400'">마진모드</span>
-              <span class="font-bold text-xs flex items-center gap-1">
-                {{ marginMode }} <span class="text-[9px]" :class="marginMode === 'Isolated' ? 'text-emerald-400' : 'text-indigo-400'">▶</span>
-              </span>
+              <span class="text-xs font-semibold text-emerald-400">마진모드</span>
+              <span class="font-bold text-xs">격리</span>
             </div>
           </div>
 
@@ -207,8 +203,8 @@
             </div>
           </div>
 
-          <!-- 탭 (시장가/지정가/StopLimit) -->
-          <div class="grid grid-cols-3 gap-1 rounded-lg bg-black/40 p-1 text-xs border border-white/10">
+          <!-- 탭 (시장가/지정가) -->
+          <div class="grid grid-cols-2 gap-1 rounded-lg bg-black/40 p-1 text-xs border border-white/10">
             <button
               type="button"
               class="rounded-md py-2 font-semibold transition"
@@ -225,35 +221,27 @@
             >
               지정가
             </button>
-            <button
-              type="button"
-              class="rounded-md py-2 font-semibold transition"
-              :class="orderType === 'trigger' ? 'bg-[#00b075]/25 text-[#00b075] border border-[#00b075]/30' : 'text-slate-400 hover:bg-white/5'"
-              @click="selectOrderType('trigger')"
-            >
-              StopLimit ▾
-            </button>
           </div>
 
           <form class="space-y-3" @submit.prevent>
             <!-- 가격 입력창 (지정가인 경우에만 표시) -->
             <div v-if="orderType === 'limit'" class="flex items-center justify-between rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 font-mono text-sm">
-              <span class="text-slate-400 text-xs font-semibold">가격</span>
+              <span class="text-slate-400 text-xs font-semibold shrink-0 whitespace-nowrap">가격</span>
               <input 
                 v-model.number="limitPrice" 
                 type="number" 
                 step="0.000001" 
-                class="bg-transparent text-right outline-none text-slate-100 font-semibold w-full px-2"
+                class="bg-transparent text-right outline-none text-slate-100 font-semibold flex-1 px-2 min-w-0"
                 placeholder="0.000000"
               />
-              <span class="text-slate-400 text-xs font-semibold">USDT</span>
+              <span class="text-slate-400 text-xs font-semibold shrink-0">USDT</span>
             </div>
 
             <!-- 수량 입력창 (비중 및 가격에 따라 계산된 값 표시) -->
             <div class="flex items-center justify-between rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 font-mono text-sm">
-              <span class="text-slate-400 text-xs font-semibold">수량</span>
-              <span class="text-slate-100 font-semibold text-right w-full px-2">{{ qtyText }}</span>
-              <span class="text-slate-400 text-xs font-semibold">{{ coinUnit }}</span>
+              <span class="text-slate-400 text-xs font-semibold shrink-0 whitespace-nowrap">수량</span>
+              <span class="text-slate-100 font-semibold text-right flex-1 px-2 min-w-0">{{ qtyText }}</span>
+              <span class="text-slate-400 text-xs font-semibold shrink-0">{{ coinUnit }}</span>
             </div>
 
             <!-- 비중 슬라이더 -->
@@ -308,13 +296,7 @@
               </button>
             </div>
 
-            <!-- reduceOnly 체크박스 -->
-            <div class="pt-1">
-              <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
-                <input type="checkbox" class="h-3.5 w-3.5 rounded border-white/10 bg-black/40 text-[#00b075] focus:ring-0" />
-                reduceOnly
-              </label>
-            </div>
+
 
             <!-- 구매 / 판매 버튼 및 비용 표시 -->
             <div class="grid grid-cols-2 gap-3 pt-2">
