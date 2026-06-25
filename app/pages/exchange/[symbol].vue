@@ -1,53 +1,26 @@
 <template>
   <div class="space-y-4">
-    <!-- 상단 요약 -->
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-      <div class="flex items-center gap-3">
-        <div class="h-9 w-9 rounded-full bg-amber-500/20 ring-1 ring-amber-400/40" />
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold">{{ symbol }}</span>
-            <select
-              v-model="symbolSelect"
-              class="rounded-md bg-black/20 px-2 py-1 text-xs ring-1 ring-white/10"
-              @change="onChangeSymbol"
-            >
-              <option value="BTCUSDT">BTCUSDT</option>
-              <option value="DOGEUSDT">DOGEUSDT</option>
-              <option value="ETHUSDT">ETHUSDT</option>
-            </select>
-          </div>
-          <div class="font-mono text-2xl">{{ lastPrice ? fmtPrice(lastPrice) : '—' }}</div>
-        </div>
-        <div class="hidden sm:flex items-center gap-4 text-xs text-slate-300">
-          <div>24h 고가 <span class="font-mono text-slate-100">{{ high24 ? fmtPrice(high24) : '—' }}</span></div>
-          <div>24h 저가 <span class="font-mono text-slate-100">{{ low24 ? fmtPrice(low24) : '—' }}</span></div>
-          <div>24h 거래량 <span class="font-mono text-slate-100">{{ vol24 ? fmtNum(vol24) : '—' }}</span></div>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-4 text-xs text-slate-300">
-        <div class="hidden md:block">
-          펀딩(예시) <span class="font-mono text-rose-300">0.0027%</span>
-        </div>
-        <div class="hidden md:block">
-          카운트다운(예시) <span class="font-mono text-slate-100">01:45:32</span>
-        </div>
-        <div class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">
-          WS <span class="font-mono">{{ wsStatus || '—' }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 메인 영역 (차트 / 호가 / 주문하기) -->
+    <!-- 메인 영역 (차트 / 오더북 / 보유자산) -->
     <!-- 좁아져도 패널이 '줄어들어 깨지는' 대신, 최소폭 이하에서는 가로 스크롤 -->
     <div class="overflow-x-auto">
-      <!-- 첨부 화면 비율: 차트 크게 + 호가/주문하기 작게 -->
+      <!-- 첨부 화면 비율: 차트 크게 + 오더북/보유자산 작게 -->
       <div class="grid min-w-[1280px] grid-cols-[minmax(720px,1fr)_320px_360px] gap-3">
       <!-- 차트 -->
       <section class="rounded-xl border border-white/10 bg-white/5 p-3">
         <div class="flex items-center justify-between gap-2">
-          <div class="text-sm font-semibold">차트</div>
+          <div class="flex items-center gap-3">
+            <span class="text-lg font-bold text-white">{{ symbol }}</span>
+            <span class="font-mono text-base text-[#00b075] font-bold px-1">{{ lastPrice ? fmtPrice(lastPrice) : '—' }}</span>
+            <select
+              v-model="symbolSelect"
+              class="rounded-md bg-black/40 border border-white/10 px-2 py-0.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-[#00b075] cursor-pointer"
+              @change="onChangeSymbol"
+            >
+              <option value="BTCUSDT" class="bg-slate-900 text-slate-200">BTCUSDT</option>
+              <option value="DOGEUSDT" class="bg-slate-900 text-slate-200">DOGEUSDT</option>
+              <option value="ETHUSDT" class="bg-slate-900 text-slate-200">ETHUSDT</option>
+            </select>
+          </div>
           <div class="flex items-center gap-2 text-xs">
             <button
               type="button"
@@ -172,148 +145,213 @@
         </div>
       </section>
 
-      <!-- 주문하기 -->
+      <!-- 보유자산 (주문 패널) -->
       <section class="rounded-xl border border-white/10 bg-white/5 p-3">
-        <div class="flex items-center justify-between">
-          <div class="text-sm font-semibold">주문하기</div>
-          <div class="flex items-center gap-2 text-xs">
-            <span class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">격리</span>
-            <span class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">{{ leverage }}</span>
-          </div>
+        <!-- Title & Subtitle: 보유자산 및 잔고 -->
+        <div class="flex flex-col gap-1">
+          <div class="text-xs text-slate-400 font-semibold">보유자산</div>
+          <div class="font-mono text-2xl font-bold text-white">{{ fmtPrice(balance) }} USDT</div>
         </div>
 
         <div v-if="!me" class="mt-4 rounded-lg bg-black/20 p-3 text-sm text-slate-300">
           주문하려면 <NuxtLink to="/auth/login" class="text-indigo-300 hover:underline">로그인</NuxtLink>이 필요합니다.
         </div>
 
-        <div v-else class="mt-3 h-[560px] rounded-lg bg-black/20 p-3">
-          <!-- 탭 (시장가/지정가/예약) -->
-          <div class="grid grid-cols-3 gap-1 rounded-md bg-black/30 p-1 text-xs ring-1 ring-white/10">
+        <div v-else class="mt-3 rounded-lg bg-black/20 p-3 space-y-4">
+          <!-- Leverage & Margin Mode Selector Row -->
+          <div class="grid grid-cols-2 gap-2">
+            <!-- Leverage Button -->
+            <div 
+              class="flex items-center justify-between rounded-lg bg-black/40 border border-white/10 px-3 py-2 cursor-pointer hover:bg-white/5 transition"
+              @click="showLeverageSlider = !showLeverageSlider"
+            >
+              <span class="text-slate-400 text-xs font-semibold">레버리지</span>
+              <span class="text-slate-100 font-mono text-xs font-bold flex items-center gap-1">
+                {{ leverage }}x <span class="text-[9px] text-slate-400">▶</span>
+              </span>
+            </div>
+
+            <!-- Margin Mode Button -->
+            <div 
+              class="flex items-center justify-between rounded-lg border px-3 py-2 cursor-pointer hover:opacity-90 transition"
+              :class="marginMode === 'Isolated' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'"
+              @click="toggleMarginMode"
+            >
+              <span class="text-xs font-semibold" :class="marginMode === 'Isolated' ? 'text-emerald-400' : 'text-indigo-400'">마진모드</span>
+              <span class="font-bold text-xs flex items-center gap-1">
+                {{ marginMode }} <span class="text-[9px]" :class="marginMode === 'Isolated' ? 'text-emerald-400' : 'text-indigo-400'">▶</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Collapsible Leverage Slider -->
+          <div v-if="showLeverageSlider" class="rounded-lg bg-black/40 border border-white/10 p-3 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span>레버리지 배율</span>
+              <span class="font-mono text-slate-200 font-semibold">{{ leverage }}x</span>
+            </div>
+            <input 
+              v-model.number="leverage" 
+              type="range" 
+              min="1" 
+              max="100" 
+              step="1" 
+              class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#00b075]" 
+            />
+            <div class="flex justify-between text-[9px] text-slate-500 font-mono">
+              <span>1x</span>
+              <span>25x</span>
+              <span>50x</span>
+              <span>75x</span>
+              <span>100x</span>
+            </div>
+          </div>
+
+          <!-- 탭 (시장가/지정가/StopLimit) -->
+          <div class="grid grid-cols-3 gap-1 rounded-lg bg-black/40 p-1 text-xs border border-white/10">
             <button
               type="button"
-              class="rounded px-3 py-2"
-              :class="orderType === 'market' ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:bg-white/5'"
+              class="rounded-md py-2 font-semibold transition"
+              :class="orderType === 'market' ? 'bg-[#00b075]/25 text-[#00b075] border border-[#00b075]/30' : 'text-slate-400 hover:bg-white/5'"
               @click="selectOrderType('market')"
             >
               시장가
             </button>
             <button
               type="button"
-              class="rounded px-3 py-2"
-              :class="orderType === 'limit' ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:bg-white/5'"
+              class="rounded-md py-2 font-semibold transition"
+              :class="orderType === 'limit' ? 'bg-[#00b075]/25 text-[#00b075] border border-[#00b075]/30' : 'text-slate-400 hover:bg-white/5'"
               @click="selectOrderType('limit')"
             >
               지정가
             </button>
             <button
               type="button"
-              class="rounded px-3 py-2"
-              :class="orderType === 'trigger' ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:bg-white/5'"
+              class="rounded-md py-2 font-semibold transition"
+              :class="orderType === 'trigger' ? 'bg-[#00b075]/25 text-[#00b075] border border-[#00b075]/30' : 'text-slate-400 hover:bg-white/5'"
               @click="selectOrderType('trigger')"
             >
-              예약
+              StopLimit ▾
             </button>
           </div>
 
-          <form class="mt-4 space-y-3" @submit.prevent>
-            <!-- 구매 가격 -->
-            <div>
-              <div class="flex items-center justify-between text-xs text-slate-300">
-                <span class="font-medium">구매 가격</span>
-                <span class="font-mono text-slate-400">USDT</span>
-              </div>
-              <input
-                v-if="orderType === 'limit'"
-                v-model.number="limitPrice"
-                type="number"
-                step="0.000001"
-                class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10 focus:ring-indigo-500"
+          <form class="space-y-3" @submit.prevent>
+            <!-- 가격 입력창 (지정가인 경우에만 표시) -->
+            <div v-if="orderType === 'limit'" class="flex items-center justify-between rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 font-mono text-sm">
+              <span class="text-slate-400 text-xs font-semibold">가격</span>
+              <input 
+                v-model.number="limitPrice" 
+                type="number" 
+                step="0.000001" 
+                class="bg-transparent text-right outline-none text-slate-100 font-semibold w-full px-2"
+                placeholder="0.000000"
               />
-              <input
-                v-else
-                class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10"
-                :value="lastPrice ? fmtPrice(lastPrice) : ''"
-                disabled
-              />
+              <span class="text-slate-400 text-xs font-semibold">USDT</span>
             </div>
 
-            <!-- 수량(자동 계산) -->
-            <div>
-              <div class="flex items-center justify-between text-xs text-slate-300">
-                <span class="font-medium">수량</span>
-                <span class="font-mono text-slate-400">{{ coinUnit }}</span>
-              </div>
-              <input
-                class="mt-1 w-full rounded-md bg-black/20 px-3 py-2 font-mono text-sm ring-1 ring-white/10"
-                :value="qtyText"
-                disabled
-              />
+            <!-- 수량 입력창 (비중 및 가격에 따라 계산된 값 표시) -->
+            <div class="flex items-center justify-between rounded-lg bg-black/40 border border-white/10 px-3 py-2.5 font-mono text-sm">
+              <span class="text-slate-400 text-xs font-semibold">수량</span>
+              <span class="text-slate-100 font-semibold text-right w-full px-2">{{ qtyText }}</span>
+              <span class="text-slate-400 text-xs font-semibold">{{ coinUnit }}</span>
             </div>
 
-            <!-- 비중 -->
-            <div>
-              <div class="flex items-center justify-between text-xs text-slate-300">
-                <span class="font-medium">비중</span>
-                <span class="rounded bg-white/10 px-2 py-0.5 font-mono text-slate-100 ring-1 ring-white/10">
-                  {{ percent }}%
-                </span>
+            <!-- 비중 슬라이더 -->
+            <div class="pt-1">
+              <div class="relative flex items-center h-5">
+                <!-- Custom Background Track -->
+                <div class="absolute left-[6px] right-[6px] top-1/2 -translate-y-1/2 h-[3px] bg-slate-700 rounded-full pointer-events-none"></div>
+                <!-- Custom Active Highlight Track -->
+                <div 
+                  class="absolute left-[6px] top-1/2 -translate-y-1/2 h-[3px] bg-[#00b075] rounded-full pointer-events-none"
+                  :style="{ width: `calc(${percent}% - ${(percent / 100) * 12}px)` }"
+                ></div>
+                <!-- Dots on track -->
+                <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none z-10 px-[3px]">
+                  <span 
+                    v-for="p in [0, 25, 50, 75, 100]" 
+                    :key="p" 
+                    class="w-2.5 h-2.5 rounded-full border-2 transition-all duration-100"
+                    :class="percent >= p ? 'border-[#00b075] bg-[#00b075]' : 'border-[#2d3748] bg-[#0f1423]'"
+                  />
+                </div>
+                <!-- Native input slider on top -->
+                <input
+                  v-model.number="percent"
+                  type="range"
+                  min="1"
+                  max="100"
+                  step="1"
+                  class="absolute inset-0 w-full h-full bg-transparent appearance-none cursor-pointer z-20 outline-none"
+                />
               </div>
-              <input
-                v-model.number="percent"
-                type="range"
-                min="1"
-                max="100"
-                step="1"
-                class="mt-2 w-full"
-              />
-              <div class="mt-1 flex justify-between text-[10px] text-slate-500">
-                <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
-              </div>
-            </div>
-
-            <!-- 레버리지 -->
-            <div>
-              <div class="text-xs font-medium text-slate-300">레버리지</div>
-              <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
-                <span>레버리지 배율</span><span class="font-mono text-slate-100">x{{ leverage }}</span>
-              </div>
-              <div class="mt-1 flex items-center justify-between text-xs text-slate-400">
-                <span>최대 레버리지</span><span class="font-mono text-slate-100">x{{ leverage }}</span>
-              </div>
-              <input v-model.number="leverage" type="range" min="1" max="100" class="mt-2 w-full" />
-              <div class="mt-1 flex justify-between text-[10px] text-slate-500">
-                <span>1</span><span>25</span><span>50</span><span>75</span><span>100</span>
+              <!-- 슬라이더 틱 라벨 (0%, 25%, 50%, 75%, 100%) -->
+              <div class="mt-1.5 flex justify-between text-[10px] text-slate-500 font-semibold font-mono px-0.5">
+                <span>0%</span>
+                <span>25%</span>
+                <span>50%</span>
+                <span>75%</span>
+                <span>100%</span>
               </div>
             </div>
 
-            <div class="pt-1 text-xs text-slate-200">
-              <div class="flex justify-between"><span class="text-slate-400">사용가능 금액</span><span class="font-mono">{{ balance.toFixed(2) }}</span></div>
-              <div class="mt-2 flex justify-between"><span class="text-slate-400">증거금</span><span class="font-mono">{{ marginUsdt.toFixed(2) }}</span></div>
-              <div class="mt-2 flex justify-between"><span class="text-slate-400">최대 볼륨</span><span class="font-mono">{{ qtyText }} {{ coinUnit }}</span></div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-2">
+            <!-- 비중 빠른 선택 버튼 (10%, 25%, 50%, 75%, 100%) -->
+            <div class="grid grid-cols-5 gap-1 pt-1">
               <button
+                v-for="p in [10, 25, 50, 75, 100]"
+                :key="p"
                 type="button"
-                class="rounded-md bg-emerald-700 px-3 py-3 text-sm font-semibold hover:bg-emerald-600"
-                :disabled="loading || orderType === 'trigger'"
-                @click="onOpen('long')"
+                class="rounded bg-[#1c2230] hover:bg-[#283145] text-slate-300 py-1.5 text-xs font-semibold transition font-mono border border-white/5"
+                @click="percent = p"
               >
-                롱 오픈
-              </button>
-              <button
-                type="button"
-                class="rounded-md bg-rose-700 px-3 py-3 text-sm font-semibold hover:bg-rose-600"
-                :disabled="loading || orderType === 'trigger'"
-                @click="onOpen('short')"
-              >
-                숏 오픈
+                {{ p }}%
               </button>
             </div>
 
-            <p v-if="orderType === 'trigger'" class="text-xs text-slate-400">예약 주문은 준비중입니다.</p>
-            <p v-if="error" class="text-sm text-rose-300">{{ error }}</p>
-            <p v-if="tradeMsg" class="text-sm text-emerald-300">{{ tradeMsg }}</p>
+            <!-- reduceOnly 체크박스 -->
+            <div class="pt-1">
+              <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
+                <input type="checkbox" class="h-3.5 w-3.5 rounded border-white/10 bg-black/40 text-[#00b075] focus:ring-0" />
+                reduceOnly
+              </label>
+            </div>
+
+            <!-- 구매 / 판매 버튼 및 비용 표시 -->
+            <div class="grid grid-cols-2 gap-3 pt-2">
+              <!-- 구매 / 롱 -->
+              <div class="space-y-1.5 text-center">
+                <button
+                  type="button"
+                  class="w-full rounded-lg bg-[#00b075] hover:bg-[#009b67] text-white py-3 text-sm font-bold transition shadow-md active:scale-[0.98]"
+                  :disabled="loading || orderType === 'trigger'"
+                  @click="onOpen('long')"
+                >
+                  구매 / 롱
+                </button>
+                <div class="text-[10px] text-slate-400 font-mono">
+                  비용 <span class="text-slate-200 font-semibold">{{ marginUsdt.toFixed(2) }}</span> USDT
+                </div>
+              </div>
+
+              <!-- 판매 / 숏 -->
+              <div class="space-y-1.5 text-center">
+                <button
+                  type="button"
+                  class="w-full rounded-lg bg-[#f0384c] hover:bg-[#d82a3d] text-white py-3 text-sm font-bold transition shadow-md active:scale-[0.98]"
+                  :disabled="loading || orderType === 'trigger'"
+                  @click="onOpen('short')"
+                >
+                  판매 / 숏
+                </button>
+                <div class="text-[10px] text-slate-400 font-mono">
+                  비용 <span class="text-slate-200 font-semibold">{{ marginUsdt.toFixed(2) }}</span> USDT
+                </div>
+              </div>
+            </div>
+
+            <p v-if="orderType === 'trigger'" class="text-xs text-slate-400 pt-2 text-center">StopLimit 예약 주문은 준비중입니다.</p>
+            <p v-if="error" class="text-sm text-rose-400 pt-2 text-center">{{ error }}</p>
+            <p v-if="tradeMsg" class="text-sm text-emerald-400 pt-2 text-center">{{ tradeMsg }}</p>
           </form>
         </div>
       </section>
@@ -607,10 +645,16 @@ let ws: WebSocket | null = null
 // trade panel
 const side = ref<'long' | 'short'>('long')
 const margin = ref<number>(100)
-const leverage = ref<number>(20)
+const leverage = ref<number>(100)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const tradeMsg = ref<string | null>(null)
+const showLeverageSlider = ref(false)
+const marginMode = ref<'Isolated' | 'Cross'>('Isolated')
+
+function toggleMarginMode() {
+  marginMode.value = marginMode.value === 'Isolated' ? 'Cross' : 'Isolated'
+}
 
 // account
 const balance = ref(0)
@@ -1235,7 +1279,7 @@ onMounted(async () => {
     const pctKey = me.value ? `futures_percent_${me.value.username}` : 'futures_percent'
     const savedLeverage = localStorage.getItem(levKey)
     if (savedLeverage) {
-      leverage.value = parseInt(savedLeverage) || 20
+      leverage.value = parseInt(savedLeverage) || 100
     }
     const savedPercent = localStorage.getItem(pctKey)
     if (savedPercent) {
@@ -1249,3 +1293,37 @@ onBeforeUnmount(() => {
   ws = null
 })
 </script>
+
+<style scoped>
+/* Webkit (Chrome, Safari, Edge) */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00b075;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Firefox */
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00b075;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.2);
+}
+</style>
