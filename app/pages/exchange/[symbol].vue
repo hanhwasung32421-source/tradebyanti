@@ -583,7 +583,7 @@
       </div>
 
       <div class="mt-8 text-center text-[10px] text-white/30 uppercase tracking-widest font-mono">
-        Virtual USDT Trading Result
+        UsdtFuture Perpetual Trading
       </div>
     </div>
   </div>
