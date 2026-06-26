@@ -2,6 +2,7 @@ type Me = {
   id: number
   username: string
   role: 'user' | 'super_admin' | 'branch_admin'
+  permissions?: Record<string, any>
 }
 
 export function useMe() {

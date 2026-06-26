@@ -590,7 +590,7 @@
 </template>
 
 <script setup lang="ts">
-import { createChart, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
+import { createChart, LineStyle, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
 
 definePageMeta({ middleware: ['auth'], layout: 'trading' })
 
@@ -610,8 +610,11 @@ function onChangeSymbol() {
   router.push(`/exchange/${symbolSelect.value}`)
 }
 
+const { me, refresh: refreshMe } = useMe()
+await refreshMe()
+
 const timeframe = ref<'1m' | '5m' | '15m'>('1m')
-const chartMode = ref<'tradingview' | 'built'>('tradingview')
+const chartMode = ref<'tradingview' | 'built'>((me.value?.permissions?.chartMode as 'tradingview' | 'built') || 'built')
 const orderType = ref<'market' | 'limit' | 'trigger'>('market')
 const bottomTab = ref<'positions' | 'limit' | 'trigger'>('positions')
 
@@ -619,8 +622,6 @@ const bottomTab = ref<'positions' | 'limit' | 'trigger'>('positions')
 const percent = ref<number>(0)
 const limitPrice = ref<number>(0)
 
-const { me, refresh: refreshMe } = useMe()
-await refreshMe()
 
 // ticker
 const lastPrice = ref<number | null>(null)
@@ -671,10 +672,12 @@ const tvInterval = computed(() => {
 
 const tvEntryLines = computed(() => {
   // TradingView 위젯이 지원하는 경우 진입 라인 전달
-  return (positions.value || []).map((p: any) => ({
-    price: Number(p.entry_price),
-    side: p.side === 'short' ? 'short' : 'long'
-  }))
+  return (positions.value || [])
+    .filter((p: any) => isSameSymbol(p.symbol, symbol.value))
+    .map((p: any) => ({
+      price: Number(p.entry_price),
+      side: p.side === 'short' ? 'short' : 'long'
+    }))
 })
 
 function fmtPrice(v: number) {
@@ -925,14 +928,16 @@ function renderEntryLines() {
   if (!candleSeries) return
   clearEntryLines()
   for (const p of positions.value) {
+    if (!isSameSymbol(p.symbol, symbol.value)) continue
     const price = Number(p.entry_price)
     if (!Number.isFinite(price)) continue
-    const color = p.side === 'long' ? '#60a5fa' : '#fb7185'
-    const title = `${p.side === 'long' ? 'LONG' : 'SHORT'} ${fmtPrice(price)}`
+    const color = p.side === 'long' ? '#10b981' : '#ef4444'
+    const title = `${p.side === 'long' ? 'LONG' : 'SHORT'} ${p.leverage}x | ${fmtQty(p.symbol, p.qty)}`
     const pl = candleSeries.createPriceLine({
       price,
       color,
-      lineWidth: 2,
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
       axisLabelVisible: true,
       title
     })
@@ -1102,6 +1107,12 @@ function formatSymbol(sym: string) {
   return sym.replace('-USDT-SWAP', '').replace('USDT', '') + '/USDT';
 }
 
+function isSameSymbol(a: string, b: string) {
+  if (!a || !b) return false
+  const norm = (s: string) => s.toUpperCase().replace(/[-_/\s]/g, '').replace('SWAP', '')
+  return norm(a) === norm(b)
+}
+
 function formatTime(isoStr: string) {
   if (!isoStr) return '';
   return isoStr.replace('T', ' ').slice(0, 19);
@@ -1266,6 +1277,38 @@ watch(percent, (v) => {
   }
 })
 
+watch(chartMode, async (newMode) => {
+  if (me.value) {
+    $fetch('/api/user/chart-mode', {
+      method: 'POST',
+      body: { chartMode: newMode }
+    }).then(() => {
+      if (me.value) {
+        if (!me.value.permissions) me.value.permissions = {}
+        me.value.permissions.chartMode = newMode
+      }
+    }).catch((err) => {
+      console.error('Failed to save chart mode preference:', err)
+    })
+  }
+
+  if (newMode === 'built') {
+    await nextTick()
+    initChart()
+    await fetchCandles().catch(() => {})
+    renderEntryLines()
+  } else {
+    if (chart) {
+      try {
+        chart.remove()
+      } catch (e) {}
+      chart = null
+      candleSeries = null
+      volumeSeries = null
+    }
+  }
+})
+
 onMounted(async () => {
   initChart()
   if (chartMode.value === 'built') {
@@ -1295,6 +1338,14 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   ws?.close()
   ws = null
+  if (chart) {
+    try {
+      chart.remove()
+    } catch (e) {}
+    chart = null
+    candleSeries = null
+    volumeSeries = null
+  }
 })
 </script>
 
