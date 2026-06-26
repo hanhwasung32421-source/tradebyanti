@@ -590,7 +590,7 @@
 </template>
 
 <script setup lang="ts">
-import { createChart, LineStyle, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
+import { createChart, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
 
 definePageMeta({ middleware: ['auth'], layout: 'trading' })
 
@@ -925,23 +925,27 @@ function clearEntryLines() {
 }
 
 function renderEntryLines() {
-  if (!candleSeries) return
-  clearEntryLines()
-  for (const p of positions.value) {
-    if (!isSameSymbol(p.symbol, symbol.value)) continue
-    const price = Number(p.entry_price)
-    if (!Number.isFinite(price)) continue
-    const color = p.side === 'long' ? '#10b981' : '#ef4444'
-    const title = `${p.side === 'long' ? 'LONG' : 'SHORT'} ${p.leverage}x | ${fmtQty(p.symbol, p.qty)}`
-    const pl = candleSeries.createPriceLine({
-      price,
-      color,
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      axisLabelVisible: true,
-      title
-    })
-    priceLines.push(pl)
+  try {
+    if (!candleSeries) return
+    clearEntryLines()
+    for (const p of positions.value) {
+      if (!isSameSymbol(p.symbol, symbol.value)) continue
+      const price = Number(p.entry_price)
+      if (!Number.isFinite(price)) continue
+      const color = p.side === 'long' ? '#10b981' : '#ef4444'
+      const title = `${p.side === 'long' ? 'LONG' : 'SHORT'} ${p.leverage}x | ${fmtQty(p.symbol, p.qty)}`
+      const pl = candleSeries.createPriceLine({
+        price,
+        color,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title
+      })
+      priceLines.push(pl)
+    }
+  } catch (err) {
+    console.error('Error rendering entry lines:', err)
   }
 }
 
@@ -1106,6 +1110,14 @@ function formatPnlWon(pnl: number) {
 function formatSymbol(sym: string) {
   return sym.replace('-USDT-SWAP', '').replace('USDT', '') + '/USDT';
 }
+
+const LineStyle = {
+  Solid: 0,
+  Dotted: 1,
+  Dashed: 2,
+  LargeDashed: 3,
+  SparseDotted: 4
+} as const
 
 function isSameSymbol(a: string, b: string) {
   if (!a || !b) return false
