@@ -986,19 +986,6 @@ async function fetchCandles() {
 
   if (candles.length) {
     lastPrice.value = candles[candles.length - 1].close
-    // 진단용 테스트: 마지막 가격에 노란색 실선을 추가해 봅니다.
-    try {
-      candleSeries?.createPriceLine({
-        price: lastPrice.value,
-        color: '#eab308',
-        lineWidth: 2,
-        lineStyle: 0,
-        axisLabelVisible: true,
-        title: 'DIAGNOSTIC TEST'
-      })
-    } catch (e) {
-      console.warn('Failed to draw diagnostic test line:', e)
-    }
   }
 
   // 데이터 갱신 후 진입 라인 다시 표시
