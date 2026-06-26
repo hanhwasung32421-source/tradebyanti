@@ -590,7 +590,7 @@
 </template>
 
 <script setup lang="ts">
-import { createChart, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
+import { createChart, CandlestickSeries, HistogramSeries, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
 
 definePageMeta({ middleware: ['auth'], layout: 'trading' })
 
@@ -877,6 +877,7 @@ function toInstId(sym: string) {
 }
 
 function initChart() {
+  if (!process.client) return
   if (!chartEl.value || chart) return
   const rect = chartEl.value.getBoundingClientRect()
   chart = createChart(chartEl.value, {
@@ -888,7 +889,7 @@ function initChart() {
     timeScale: { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true, secondsVisible: false }
   })
 
-  candleSeries = chart.addCandlestickSeries({
+  candleSeries = chart.addSeries(CandlestickSeries, {
     upColor: '#10b981',
     downColor: '#ef4444',
     borderUpColor: '#10b981',
@@ -897,7 +898,7 @@ function initChart() {
     wickDownColor: '#ef4444'
   })
 
-  volumeSeries = chart.addHistogramSeries({
+  volumeSeries = chart.addSeries(HistogramSeries, {
     priceFormat: { type: 'volume' },
     priceScaleId: ''
   })
