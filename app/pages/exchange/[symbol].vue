@@ -55,8 +55,8 @@
               :interval="tvInterval"
               :entry-lines="tvEntryLines"
             />
-            <div v-else ref="chartEl" class="h-full w-full" />
           </ClientOnly>
+          <div v-if="chartMode === 'built'" ref="chartEl" class="h-full w-full" />
         </div>
       </section>
 
@@ -1310,6 +1310,7 @@ watch(chartMode, async (newMode) => {
 })
 
 onMounted(async () => {
+  await nextTick()
   initChart()
   if (chartMode.value === 'built') {
     await fetchCandles().catch(() => {})
