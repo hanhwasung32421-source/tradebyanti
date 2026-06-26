@@ -1034,7 +1034,8 @@ function connectWs() {
         args: [
           { channel: 'tickers', instId },
           // 첨부처럼 더 많은 레벨이 필요해서 books 사용
-          { channel: 'books', instId }
+          { channel: 'books', instId },
+          { channel: `candle${timeframe.value}`, instId }
         ]
       })
     )
@@ -1055,6 +1056,26 @@ function connectWs() {
         high24.value = Number(data.high24h ?? data.high24) || high24.value
         low24.value = Number(data.low24h ?? data.low24) || low24.value
         vol24.value = Number(data.vol24h ?? data.vol24) || vol24.value
+      }
+
+      if (arg.channel === `candle${timeframe.value}`) {
+        const ts = Number(data[0])
+        const o = Number(data[1])
+        const h = Number(data[2])
+        const l = Number(data[3])
+        const c = Number(data[4])
+        const vol = Number(data[5] ?? 0)
+        const time = Math.floor(ts / 1000) as any
+
+        if ([o, h, l, c].every(Number.isFinite)) {
+          candleSeries?.update({ time, open: o, high: h, low: l, close: c })
+          volumeSeries?.update({
+            time,
+            value: vol,
+            color: c >= o ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)'
+          })
+          lastPrice.value = c
+        }
       }
 
       if (arg.channel === 'books') {
