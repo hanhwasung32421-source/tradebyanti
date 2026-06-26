@@ -47,16 +47,15 @@
           </div>
         </div>
         <div class="mt-3 h-[560px] w-full overflow-hidden rounded-lg bg-black/40">
-          <ClientOnly>
+          <ClientOnly v-if="chartMode === 'tradingview'">
             <TradingViewWidget
-              v-if="chartMode === 'tradingview'"
               :key="tvSymbol + ':' + tvInterval"
               :symbol="tvSymbol"
               :interval="tvInterval"
               :entry-lines="tvEntryLines"
             />
           </ClientOnly>
-          <div v-if="chartMode === 'built'" ref="chartEl" class="h-full w-full" />
+          <div v-else ref="chartEl" class="h-full w-full" />
         </div>
       </section>
 
@@ -886,7 +885,18 @@ function initChart() {
     layout: { background: { color: 'transparent' }, textColor: '#cbd5e1' },
     grid: { vertLines: { color: 'rgba(255,255,255,0.06)' }, horzLines: { color: 'rgba(255,255,255,0.06)' } },
     rightPriceScale: { borderColor: 'rgba(255,255,255,0.12)' },
-    timeScale: { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true, secondsVisible: false }
+    timeScale: { borderColor: 'rgba(255,255,255,0.12)', timeVisible: true, secondsVisible: false },
+    handleScroll: {
+      mouseWheel: true,
+      pressedMouseMove: true,
+      horzTouchDrag: true,
+      vertTouchDrag: true,
+    },
+    handleScale: {
+      axisPressedMouseMove: true,
+      mouseWheel: true,
+      pinch: true,
+    }
   })
 
   candleSeries = chart.addSeries(CandlestickSeries, {
@@ -905,11 +915,19 @@ function initChart() {
   })
   volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
 
-  // ResizeObserver
+  // ResizeObserver: 무한 루프 렌더링 동결 방지
+  let lastWidth = 0
+  let lastHeight = 0
   const ro = new ResizeObserver(() => {
     if (!chartEl.value || !chart) return
     const r = chartEl.value.getBoundingClientRect()
-    chart.applyOptions({ width: Math.floor(r.width), height: Math.floor(r.height) })
+    const newWidth = Math.floor(r.width)
+    const newHeight = Math.floor(r.height)
+    if (newWidth > 0 && newHeight > 0 && (newWidth !== lastWidth || newHeight !== lastHeight)) {
+      lastWidth = newWidth
+      lastHeight = newHeight
+      chart.applyOptions({ width: newWidth, height: newHeight })
+    }
   })
   ro.observe(chartEl.value)
 }
