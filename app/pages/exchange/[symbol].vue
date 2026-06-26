@@ -895,7 +895,8 @@ function initChart() {
     borderUpColor: '#10b981',
     borderDownColor: '#ef4444',
     wickUpColor: '#10b981',
-    wickDownColor: '#ef4444'
+    wickDownColor: '#ef4444',
+    priceFormat: getPriceFormatOptions(symbol.value)
   })
 
   volumeSeries = chart.addSeries(HistogramSeries, {
@@ -1126,6 +1127,22 @@ function isSameSymbol(a: string, b: string) {
   return norm(a) === norm(b)
 }
 
+function getPriceFormatOptions(sym: string) {
+  const s = String(sym || '').toUpperCase()
+  if (s.includes('DOGE')) {
+    return {
+      type: 'price',
+      precision: 6,
+      minMove: 0.000001
+    }
+  }
+  return {
+    type: 'price',
+    precision: 2,
+    minMove: 0.01
+  }
+}
+
 function formatTime(isoStr: string) {
   if (!isoStr) return '';
   return isoStr.replace('T', ' ').slice(0, 19);
@@ -1270,6 +1287,11 @@ async function closePosition(positionId: number) {
 watch([() => symbol.value, timeframe], async () => {
   // 심볼/타임프레임 변경 시 차트/WS 재연결
   if (chartMode.value === 'built') {
+    if (candleSeries) {
+      candleSeries.applyOptions({
+        priceFormat: getPriceFormatOptions(symbol.value)
+      })
+    }
     await fetchCandles().catch(() => {})
   }
   connectWs()
@@ -1308,6 +1330,11 @@ watch(chartMode, async (newMode) => {
   if (newMode === 'built') {
     await nextTick()
     initChart()
+    if (candleSeries) {
+      candleSeries.applyOptions({
+        priceFormat: getPriceFormatOptions(symbol.value)
+      })
+    }
     await fetchCandles().catch(() => {})
     renderEntryLines()
   } else {
