@@ -22,6 +22,22 @@
             </select>
           </div>
           <div class="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 ring-1"
+              :class="chartMode === 'tradingview' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+              @click="chartMode = 'tradingview'"
+            >
+              TradingView
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 ring-1"
+              :class="chartMode === 'built' ? 'bg-white/10 ring-white/20' : 'bg-black/10 ring-white/10 hover:bg-white/10'"
+              @click="chartMode = 'built'"
+            >
+              기본차트
+            </button>
             <select v-model="timeframe" class="rounded-md bg-black/40 border border-white/10 px-2 py-1 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-[#00b075] cursor-pointer">
               <option value="1m" class="bg-slate-900 text-slate-200">1분</option>
               <option value="5m" class="bg-slate-900 text-slate-200">5분</option>
@@ -622,7 +638,7 @@ const { me, refresh: refreshMe } = useMe()
 await refreshMe()
 
 const timeframe = ref<'1m' | '5m' | '15m'>('1m')
-const chartMode = ref<'tradingview' | 'built'>('tradingview')
+const chartMode = ref<'tradingview' | 'built'>((me.value?.permissions?.chartMode as 'tradingview' | 'built') || 'built')
 const orderType = ref<'market' | 'limit' | 'trigger'>('market')
 const bottomTab = ref<'positions' | 'limit' | 'trigger'>('positions')
 
