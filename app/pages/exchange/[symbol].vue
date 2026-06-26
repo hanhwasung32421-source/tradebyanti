@@ -46,7 +46,32 @@
             <button class="rounded-md bg-white/10 px-2 py-1 hover:bg-white/15" @click="reloadCandles">새로고침</button>
           </div>
         </div>
-        <div class="mt-3 h-[560px] w-full overflow-hidden rounded-lg bg-black/40">
+        <div class="relative mt-3 h-[560px] w-full overflow-hidden rounded-lg bg-black/40">
+          <div v-if="chartMode === 'built'" class="absolute left-2 top-2 z-10 flex flex-col gap-2">
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-[11px] ring-1 transition-colors"
+              :class="activeTool === 'cursor' ? 'bg-yellow-400 text-black ring-yellow-300' : 'bg-slate-900/80 text-slate-100 ring-white/10 hover:bg-white/10'"
+              @click="activeTool = 'cursor'"
+            >커서</button>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-[11px] ring-1 transition-colors"
+              :class="activeTool === 'trend' ? 'bg-yellow-400 text-black ring-yellow-300' : 'bg-slate-900/80 text-slate-100 ring-white/10 hover:bg-white/10'"
+              @click="activeTool = 'trend'"
+            >추세선</button>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-[11px] ring-1 transition-colors"
+              :class="activeTool === 'hline' ? 'bg-yellow-400 text-black ring-yellow-300' : 'bg-slate-900/80 text-slate-100 ring-white/10 hover:bg-white/10'"
+              @click="activeTool = 'hline'"
+            >수평선</button>
+            <button
+              type="button"
+              class="rounded-md bg-slate-900/80 px-2 py-1 text-[11px] text-red-400 ring-1 ring-white/10 hover:bg-red-500/20 transition-colors"
+              @click="clearAllDrawings"
+            >지우기</button>
+          </div>
           <ClientOnly v-if="chartMode === 'tradingview'">
             <TradingViewWidget
               :key="tvSymbol + ':' + tvInterval"
@@ -589,7 +614,7 @@
 </template>
 
 <script setup lang="ts">
-import { createChart, CandlestickSeries, HistogramSeries, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
+import { createChart, CandlestickSeries, HistogramSeries, LineSeries, LineStyle, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
 
 definePageMeta({ middleware: ['auth'], layout: 'trading' })
 
@@ -659,6 +684,148 @@ let candleSeries: ISeriesApi<'Candlestick'> | null = null
 let volumeSeries: ISeriesApi<'Histogram'> | null = null
 const priceLines: any[] = []
 let currentLastCandle: CandlestickData | null = null
+
+// drawing
+const activeTool = ref<'cursor' | 'trend' | 'hline'>('cursor')
+const pendingTrendStart = ref<{ time: any; price: number } | null>(null)
+let saveChartPrefsTimer: any = null
+const chartPrefs = reactive<{
+  drawings: Array<{ id: string; type: 'trend' | 'hline'; color?: string; price?: number; points?: Array<{ time: any; price: number }> }>
+}>({
+  drawings: []
+})
+const drawingPriceLines: any[] = []
+const drawingSeries: any[] = []
+let latestCrosshairPrice: number | null = null
+
+function scheduleSaveChartPrefs() {
+  if (saveChartPrefsTimer) clearTimeout(saveChartPrefsTimer)
+  saveChartPrefsTimer = setTimeout(() => {
+    try {
+      const saved = localStorage.getItem('chartPrefs')
+      const all = saved ? JSON.parse(saved) : {}
+      all[symbol.value] = chartPrefs.drawings
+      localStorage.setItem('chartPrefs', JSON.stringify(all))
+    } catch {}
+  }, 1000)
+}
+
+function loadChartPrefs() {
+  try {
+    const saved = localStorage.getItem('chartPrefs')
+    if (saved) {
+      const all = JSON.parse(saved)
+      if (all[symbol.value]) {
+        chartPrefs.drawings = all[symbol.value]
+      }
+    }
+  } catch {}
+}
+
+function clearDrawingVisuals() {
+  while (drawingPriceLines.length) {
+    const pl = drawingPriceLines.pop()
+    try { candleSeries?.removePriceLine(pl) } catch {}
+  }
+  while (drawingSeries.length) {
+    const s = drawingSeries.pop()
+    try { if (s && chart) chart.removeSeries(s) } catch {}
+  }
+}
+
+function renderSavedDrawings() {
+  if (!chart || !candleSeries) return
+  clearDrawingVisuals()
+  for (const d of chartPrefs.drawings) {
+    if (d.type === 'hline' && Number.isFinite(Number(d.price))) {
+      const pl = candleSeries.createPriceLine({
+        price: Number(d.price),
+        color: d.color || '#facc15',
+        lineWidth: 2,
+        lineStyle: LineStyle.Solid,
+        axisLabelVisible: true,
+        axisLabelColor: d.color || '#facc15',
+        title: '도구선'
+      })
+      drawingPriceLines.push(pl)
+    } else if (d.type === 'trend' && d.points?.length === 2) {
+      const s = chart.addSeries(LineSeries, {
+        color: d.color || '#facc15',
+        lineWidth: 2,
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false
+      })
+      s.setData(d.points as any)
+      drawingSeries.push(s)
+    }
+  }
+}
+
+function clearAllDrawings() {
+  chartPrefs.drawings = []
+  pendingTrendStart.value = null
+  activeTool.value = 'cursor'
+  renderSavedDrawings()
+  scheduleSaveChartPrefs()
+}
+
+function onChartClick(param: any) {
+  if (!chart || !candleSeries || !param?.point) return
+  if (activeTool.value === 'cursor') return
+  const price = candleSeries.priceScale().coordinateToPrice(param.point.y)
+  const time = param.time ?? chart.timeScale().coordinateToTime(param.point.x)
+  if (!Number.isFinite(Number(price)) || !time) return
+
+  if (activeTool.value === 'hline') {
+    chartPrefs.drawings.push({
+      id: `h-${Date.now()}`,
+      type: 'hline',
+      color: '#facc15',
+      price: Number(price)
+    })
+    renderSavedDrawings()
+    scheduleSaveChartPrefs()
+    activeTool.value = 'cursor'
+    return
+  }
+
+  if (activeTool.value === 'trend') {
+    if (!pendingTrendStart.value) {
+      pendingTrendStart.value = { time, price: Number(price) }
+      return
+    }
+    chartPrefs.drawings.push({
+      id: `t-${Date.now()}`,
+      type: 'trend',
+      color: '#facc15',
+      points: [
+        { time: pendingTrendStart.value.time, price: pendingTrendStart.value.price },
+        { time, price: Number(price) }
+      ]
+    })
+    pendingTrendStart.value = null
+    renderSavedDrawings()
+    scheduleSaveChartPrefs()
+    activeTool.value = 'cursor'
+  }
+}
+
+function handleGlobalKeydown(e: KeyboardEvent) {
+  if (e.altKey && (e.key === 'h' || e.key === 'H')) {
+    e.preventDefault()
+    if (latestCrosshairPrice !== null && chartMode.value === 'built') {
+      chartPrefs.drawings.push({
+        id: `h-${Date.now()}`,
+        type: 'hline',
+        color: '#facc15',
+        price: Number(latestCrosshairPrice)
+      })
+      renderSavedDrawings()
+      scheduleSaveChartPrefs()
+    }
+  }
+}
 
 function updateLiveCandle(price: number, tsMs: number) {
   if (!candleSeries) return
@@ -967,6 +1134,18 @@ function initChart() {
     }
   })
   ro.observe(chartEl.value)
+
+  chart.subscribeClick(onChartClick)
+  chart.subscribeCrosshairMove((param: any) => {
+    if (param.point && candleSeries) {
+      const price = candleSeries.priceScale().coordinateToPrice(param.point.y)
+      if (price !== null && Number.isFinite(Number(price))) {
+        latestCrosshairPrice = Number(price)
+      }
+    } else {
+      latestCrosshairPrice = null
+    }
+  })
 }
 
 function clearEntryLines() {
@@ -1430,8 +1609,13 @@ watch(chartMode, async (newMode) => {
 })
 
 onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalKeydown)
+  loadChartPrefs()
   await nextTick()
   initChart()
+  if (chartMode.value === 'built') {
+    renderSavedDrawings()
+  }
   if (chartMode.value === 'built') {
     await fetchCandles().catch(() => {})
   }
@@ -1457,6 +1641,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
   ws?.close()
   ws = null
   if (chart) {
