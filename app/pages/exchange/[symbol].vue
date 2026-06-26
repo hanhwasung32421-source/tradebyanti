@@ -38,10 +38,10 @@
             >
               기본차트
             </button>
-            <select v-model="timeframe" class="rounded-md bg-black/20 px-2 py-1 ring-1 ring-white/10">
-              <option value="1m">1분</option>
-              <option value="5m">5분</option>
-              <option value="15m">15분</option>
+            <select v-model="timeframe" class="rounded-md bg-black/40 border border-white/10 px-2 py-1 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-[#00b075] cursor-pointer">
+              <option value="1m" class="bg-slate-900 text-slate-200">1분</option>
+              <option value="5m" class="bg-slate-900 text-slate-200">5분</option>
+              <option value="15m" class="bg-slate-900 text-slate-200">15분</option>
             </select>
             <button class="rounded-md bg-white/10 px-2 py-1 hover:bg-white/15" @click="reloadCandles">새로고침</button>
           </div>
