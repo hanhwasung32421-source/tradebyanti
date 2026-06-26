@@ -658,6 +658,43 @@ let chart: IChartApi | null = null
 let candleSeries: ISeriesApi<'Candlestick'> | null = null
 let volumeSeries: ISeriesApi<'Histogram'> | null = null
 const priceLines: any[] = []
+let currentLastCandle: CandlestickData | null = null
+
+function updateLiveCandle(price: number, tsMs: number) {
+  if (!candleSeries) return
+  const p = Number(price)
+  if (!Number.isFinite(p) || p <= 0) return
+
+  const ts = Number.isFinite(tsMs) ? tsMs : Date.now()
+  const sec = Math.floor(ts / 1000)
+  const bs = timeframe.value === '1m' ? 60 : timeframe.value === '5m' ? 300 : 900
+  const bucket = Math.floor(sec / bs) * bs
+  const time = bucket as any
+
+  if (!currentLastCandle || Number((currentLastCandle as any).time) !== bucket) {
+    const open = currentLastCandle ? Number(currentLastCandle.close) : p
+    const next: CandlestickData = { time, open, high: p, low: p, close: p }
+    currentLastCandle = next
+    candleSeries.update(next)
+    volumeSeries?.update({ time, value: 0, color: 'rgba(148,163,184,0.25)' })
+    return
+  }
+
+  const updated: CandlestickData = {
+    time,
+    open: Number(currentLastCandle.open),
+    high: Math.max(Number(currentLastCandle.high), p),
+    low: Math.min(Number(currentLastCandle.low), p),
+    close: p
+  }
+  currentLastCandle = updated
+  candleSeries.update(updated)
+  volumeSeries?.update({
+    time,
+    value: 0,
+    color: p >= updated.open ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'
+  })
+}
 
 const tvSymbol = computed(() => {
   // TradingView: OKX 무기한은 .P 심볼을 사용 (예: OKX:DOGEUSDT.P)
@@ -957,8 +994,8 @@ function renderEntryLines() {
       const pl = candleSeries.createPriceLine({
         price,
         color,
-        lineWidth: 1,
-        lineStyle: LineStyle.Dashed,
+        lineWidth: 2,
+        lineStyle: LineStyle.Solid,
         axisLabelVisible: true,
         title
       })
@@ -1005,6 +1042,7 @@ async function fetchCandles() {
 
   if (candles.length) {
     lastPrice.value = candles[candles.length - 1].close
+    currentLastCandle = candles[candles.length - 1]
   }
 
   // 데이터 갱신 후 진입 라인 다시 표시
@@ -1052,7 +1090,10 @@ function connectWs() {
 
       if (arg.channel === 'tickers') {
         const p = Number(data.last)
-        if (Number.isFinite(p)) lastPrice.value = p
+        if (Number.isFinite(p)) {
+          lastPrice.value = p
+          updateLiveCandle(p, Number(data.ts ?? Date.now()))
+        }
         high24.value = Number(data.high24h ?? data.high24) || high24.value
         low24.value = Number(data.low24h ?? data.low24) || low24.value
         vol24.value = Number(data.vol24h ?? data.vol24) || vol24.value
