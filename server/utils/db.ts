@@ -19,13 +19,18 @@ export async function getDbUserById(id: number) {
   return data
 }
 
-export async function createDbUser(username: string, passwordHash: string, role: string, permissions: string) {
+export async function createDbUser(username: string, passwordHash: string, role: string, permissions: string, extra?: { real_name?: string; phone?: string; birthdate?: string; bank_name?: string; bank_account?: string }) {
   const supa = getSupabaseAdminClient()
   const { data, error } = await supa.from('anti_users').insert({
     username,
     password_hash: passwordHash,
     role,
     permissions,
+    real_name: extra?.real_name || null,
+    phone: extra?.phone || null,
+    birthdate: extra?.birthdate || null,
+    bank_name: extra?.bank_name || null,
+    bank_account: extra?.bank_account || null,
     created_at: new Date().toISOString()
   }).select('id').single()
   if (error) throw error
@@ -48,6 +53,11 @@ export async function getUsersAndBalances() {
     last_login_at,
     last_login_ip,
     last_seen_at,
+    real_name,
+    phone,
+    birthdate,
+    bank_name,
+    bank_account,
     balances:anti_balances(usdt)
   `).order('id', { ascending: false })
   if (error) throw error
@@ -61,9 +71,30 @@ export async function getUsersAndBalances() {
       last_login_at: u.last_login_at,
       last_login_ip: u.last_login_ip,
       last_seen_at: u.last_seen_at,
+      real_name: u.real_name,
+      phone: u.phone,
+      birthdate: u.birthdate,
+      bank_name: u.bank_name,
+      bank_account: u.bank_account,
       usdt: balObj?.usdt ?? 0
     }
   })
+}
+
+export async function updateDbUserInfo(id: number, info: { password_hash?: string; real_name?: string; phone?: string; birthdate?: string; bank_name?: string; bank_account?: string }) {
+  const supa = getSupabaseAdminClient()
+  const payload: any = {}
+  if (info.password_hash) payload.password_hash = info.password_hash
+  if (info.real_name !== undefined) payload.real_name = info.real_name
+  if (info.phone !== undefined) payload.phone = info.phone
+  if (info.birthdate !== undefined) payload.birthdate = info.birthdate
+  if (info.bank_name !== undefined) payload.bank_name = info.bank_name
+  if (info.bank_account !== undefined) payload.bank_account = info.bank_account
+  
+  if (Object.keys(payload).length > 0) {
+    const { error } = await supa.from('anti_users').update(payload).eq('id', id)
+    if (error) throw error
+  }
 }
 
 export async function deleteDbUser(id: number) {
@@ -88,9 +119,13 @@ export async function updateUserLoginStatus(id: number, ip: string) {
   }).eq('id', id)
 }
 
-export async function updateHeartbeat(id: number) {
+export async function updateHeartbeat(id: number, ip?: string) {
   const supa = getSupabaseAdminClient()
-  await supa.from('anti_users').update({ last_seen_at: new Date().toISOString() }).eq('id', id)
+  const updateData: any = { last_seen_at: new Date().toISOString() }
+  if (ip) {
+    updateData.last_login_ip = ip
+  }
+  await supa.from('anti_users').update(updateData).eq('id', id)
 }
 
 export async function blockIp(ip: string, reason?: string) {
