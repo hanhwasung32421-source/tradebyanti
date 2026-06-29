@@ -688,7 +688,7 @@ function onChangeSymbol() {
   router.push(`/exchange/${symbolSelect.value}`)
 }
 
-const timeframe = ref<'1m' | '5m' | '15m'>('1m')
+const timeframe = ref<'1m' | '5m' | '15m'>('5m')
 const timeframeOptions = [
   { value: '1m', label: '1분' },
   { value: '5m', label: '5분' },
