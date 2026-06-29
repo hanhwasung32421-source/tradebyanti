@@ -2,22 +2,20 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { execSync } from 'node:child_process'
+
 function getAppVersion() {
-  try {
-    const raw = readFileSync(join(process.cwd(), 'version.json'), 'utf8')
-    // Windows PowerShell이 UTF-8 BOM을 붙이는 경우가 있어 제거
-    const cleaned = raw.replace(/^\uFEFF/, '')
-    const v = JSON.parse(cleaned)
-    if (v?.date && v?.build) return `${v.date}.${v.build}`
-  } catch {
-    // ignore
-  }
-  // fallback: yyMMdd.0
   const d = new Date()
   const yy = String(d.getFullYear()).slice(-2)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
-  return `${yy}${mm}${dd}.0`
+  
+  try {
+    const build = execSync('git rev-list --count HEAD').toString().trim()
+    return `${yy}${mm}${dd}.${build}`
+  } catch {
+    return `${yy}${mm}${dd}.0`
+  }
 }
 
 export default defineNuxtConfig({
