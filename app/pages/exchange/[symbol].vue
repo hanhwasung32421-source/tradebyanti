@@ -1657,6 +1657,21 @@ async function openPosition() {
     return
   }
 
+  // Optimistic UI Update: 즉시 화면과 차트에 표시
+  const tempId = -Date.now()
+  const optimisticPos = {
+    id: tempId,
+    symbol: symbol.value,
+    side: side.value,
+    margin: m,
+    leverage: leverage.value,
+    entry_price: price,
+    qty: (m * leverage.value) / price,
+    created_at: new Date().toISOString()
+  }
+  positions.value.unshift(optimisticPos as any)
+  if (chartMode.value === 'built') renderEntryLines()
+
   loading.value = true
   error.value = null
   tradeMsg.value = null
@@ -1672,28 +1687,35 @@ async function openPosition() {
       }
     })
     tradeMsg.value = '포지션이 오픈되었습니다.'
-    await loadAccount()
 
     // 시장가 탭은 오픈 후 다시 "정리" 상태로
     if (orderType.value === 'market') {
       percent.value = 50
     }
   } catch (e: any) {
+    // 실패 시 낙관적 업데이트 롤백
+    positions.value = positions.value.filter(p => p.id !== tempId)
+    if (chartMode.value === 'built') renderEntryLines()
     error.value = e?.data?.statusMessage || '오픈 실패'
   } finally {
+    // 실제 서버 데이터 동기화
+    await loadAccount()
     loading.value = false
   }
 }
 
 async function closePosition(positionId: number, mode: 'market' | 'limit' = 'market', pos?: any) {
   tradeMsg.value = null
+
+  // Optimistic UI Update: 즉시 화면과 차트에서 제거
+  const originalPositions = [...positions.value]
+  positions.value = positions.value.filter(p => p.id !== positionId)
+  if (chartMode.value === 'built') renderEntryLines()
+
   try {
     const res = await $fetch<any>('/api/trade/close', { method: 'POST', body: { positionId } })
     tradeMsg.value = `청산 완료 · PnL ${res.pnl >= 0 ? '+' : ''}${Number(res.pnl).toFixed(2)} USDT`
-    await loadAccount()
-    if (fills.value.length || bottomTab.value === 'fills') {
-      await loadFills(true)
-    }
+    
     if (mode === 'market' && pos) {
       const pnl = Number(res.pnl || 0)
       const roe = Number(pos.margin) > 0 ? (pnl / Number(pos.margin)) * 100 : 0
@@ -1709,7 +1731,16 @@ async function closePosition(positionId: number, mode: 'market' | 'limit' = 'mar
       }
     }
   } catch (e: any) {
+    // 실패 시 낙관적 업데이트 롤백
+    positions.value = originalPositions
+    if (chartMode.value === 'built') renderEntryLines()
     error.value = e?.data?.statusMessage || '청산 실패'
+  } finally {
+    // 실제 서버 데이터 동기화
+    await loadAccount()
+    if (fills.value.length || bottomTab.value === 'fills') {
+      await loadFills(true)
+    }
   }
 }
 
