@@ -16,7 +16,7 @@
 
         <div class="flex items-center gap-2 text-sm">
           <span class="hidden sm:inline rounded-md bg-white/5 px-2 py-1 text-xs font-mono text-slate-300 ring-1 ring-white/10">
-            v{{ appVersion }}
+            {{ appVersion }}
           </span>
           <template v-if="me">
             <span class="hidden sm:inline text-slate-300">{{ me.username }}</span>
@@ -45,7 +45,8 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
 const appName = config.public.appName
-const appVersion = config.public.appVersion
+import { APP_VERSION } from '../utils/version'
+const appVersion = APP_VERSION
 
 const { me, refresh } = useMe()
 await refresh()
