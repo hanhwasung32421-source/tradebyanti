@@ -75,7 +75,7 @@
               </td>
               <td class="py-3 px-2 whitespace-nowrap">
                 <div class="flex items-center gap-2">
-                  <span class="font-mono text-slate-300 w-16 text-right">{{ (u.usdt ?? 0).toFixed(2) }}</span>
+                  <span class="font-mono text-slate-300 mr-1 text-xs whitespace-nowrap">현재 잔액: {{ (u.usdt ?? 0).toFixed(2) }}</span>
                   <input
                     v-model.number="balanceInputs[u.id]"
                     type="number"
