@@ -492,13 +492,12 @@
               <th class="px-3 py-2">방향</th>
               <th class="px-3 py-2">체결가</th>
               <th class="px-3 py-2">수량</th>
-              <th class="px-3 py-2">수수료</th>
               <th class="px-3 py-2">실현손익</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="fills.length === 0 && !fillsLoading" class="border-t border-white/10">
-              <td colspan="7" class="px-3 py-4 text-slate-400">체결내역이 없습니다.</td>
+              <td colspan="6" class="px-3 py-4 text-slate-400">체결내역이 없습니다.</td>
             </tr>
             <tr v-for="t in fills" :key="`fill-${t.id}`" class="border-t border-white/10">
               <td class="px-3 py-3 font-mono text-slate-300">{{ formatTradeTime(t.created_at) }}</td>
@@ -508,7 +507,6 @@
               </td>
               <td class="px-3 py-3 font-mono text-slate-200">{{ fmtPrice(Number(t.exit_price)) }}</td>
               <td class="px-3 py-3 font-mono text-slate-200">{{ fmtQty(t.symbol, Number(t.qty)) }} {{ baseCoin(t.symbol) }}</td>
-              <td class="px-3 py-3 font-mono text-slate-300">{{ tradeFee(t).toFixed(6) }} USDT</td>
               <td class="px-3 py-3">
                 <div class="flex items-center justify-between gap-2">
                   <div class="font-mono" :class="Number(t.pnl) >= 0 ? 'text-emerald-300' : 'text-rose-300'">
@@ -525,7 +523,7 @@
               </td>
             </tr>
             <tr v-if="fillsLoading" class="border-t border-white/10">
-              <td colspan="7" class="px-3 py-3 text-slate-400">불러오는 중…</td>
+              <td colspan="6" class="px-3 py-3 text-slate-400">불러오는 중…</td>
             </tr>
           </tbody>
         </table>

@@ -20,15 +20,23 @@ export default defineEventHandler(async (event) => {
   const usdt = await getDbBalance(user.id)
 
   const entry = body.price ?? (await getOkxLastPrice(body.symbol)).last
-  const qty = (body.margin * body.leverage) / entry
-  const fee = body.margin * body.leverage * 0.0004
+  
+  let actualMargin = body.margin
+  let fee = actualMargin * 0.04
 
-  if (usdt < body.margin + fee) {
-    throw createError({ statusCode: 400, statusMessage: '잔고가 부족합니다 (수수료 포함).' })
+  if (usdt < actualMargin + fee) {
+    if (usdt <= 0) {
+      throw createError({ statusCode: 400, statusMessage: '잔고가 부족합니다.' })
+    }
+    // 남은 예수금이 부족할 때: 가진 돈 전부(usdt)에서 수수료 4%를 뺀 나머지만 실제 마진으로 사용
+    fee = usdt * 0.04
+    actualMargin = usdt - fee
   }
 
+  const qty = (actualMargin * body.leverage) / entry
+
   // Deduct margin and fee
-  await incrementDbBalance(user.id, -(body.margin + fee))
+  await incrementDbBalance(user.id, -(actualMargin + fee))
 
   await createDbPosition(
     user.id,
@@ -37,7 +45,7 @@ export default defineEventHandler(async (event) => {
     qty,
     entry,
     body.leverage,
-    body.margin
+    actualMargin
   )
 
   await createDbExecution(
@@ -56,7 +64,7 @@ export default defineEventHandler(async (event) => {
     side: body.side,
     buy_price: entry,
     qty,
-    margin: body.margin,
+    margin: actualMargin,
     leverage: body.leverage
   })
 

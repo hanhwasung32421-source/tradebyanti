@@ -21,8 +21,8 @@ export default defineEventHandler(async (event) => {
   const pnlRaw = (exit - pos.entry_price) * pos.qty
   const pnl = pos.side === 'long' ? pnlRaw : -pnlRaw
 
-  // 잔고: 증거금 반환 + 손익 반영 - 수수료 반영
-  const fee = pos.qty * exit * 0.0004
+  // 잔고: 증거금 반환 + 손익 반영 - 수수료 반영 (마진의 4%)
+  const fee = pos.margin * 0.04
   await incrementDbBalance(user.id, pos.margin + pnl - fee)
 
   await deleteDbPosition(pos.id, user.id)
