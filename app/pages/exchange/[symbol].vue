@@ -1683,7 +1683,7 @@ async function openPosition() {
         side: side.value,
         margin: m,
         leverage: leverage.value,
-        ...(orderType.value === 'limit' ? { price } : {})
+        price // 항상 누르는 순간의 값(클라이언트 가격)으로 서버에 전달하여 체결
       }
     })
     tradeMsg.value = '포지션이 오픈되었습니다.'
@@ -1738,7 +1738,13 @@ async function closePosition(positionId: number, mode: 'market' | 'limit' = 'mar
   }
 
   try {
-    const res = await $fetch<any>('/api/trade/close', { method: 'POST', body: { positionId } })
+    const res = await $fetch<any>('/api/trade/close', { 
+      method: 'POST', 
+      body: { 
+        positionId, 
+        price: mode === 'market' && pos ? (lastPrice.value || pos.entry_price) : undefined 
+      } 
+    })
     tradeMsg.value = `청산 완료 · PnL ${res.pnl >= 0 ? '+' : ''}${Number(res.pnl).toFixed(2)} USDT`
     
     // 서버가 정확한 최종 체결값을 응답하면 카드의 숫자를 살짝(정확하게) 보정

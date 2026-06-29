@@ -4,7 +4,8 @@ import { getDbPositionById, incrementDbBalance, deleteDbPosition, createDbTrade,
 import { getOkxLastPrice } from '../../utils/okx'
 
 const BodySchema = z.object({
-  positionId: z.number().int().positive()
+  positionId: z.number().int().positive(),
+  price: z.number().positive().optional()
 })
 
 export default defineEventHandler(async (event) => {
@@ -15,8 +16,7 @@ export default defineEventHandler(async (event) => {
 
   if (!pos) throw createError({ statusCode: 404, statusMessage: '포지션을 찾을 수 없습니다.' })
 
-  const { last } = await getOkxLastPrice(pos.symbol)
-  const exit = last
+  const exit = body.price ?? (await getOkxLastPrice(pos.symbol)).last
 
   const pnlRaw = (exit - pos.entry_price) * pos.qty
   const pnl = pos.side === 'long' ? pnlRaw : -pnlRaw
