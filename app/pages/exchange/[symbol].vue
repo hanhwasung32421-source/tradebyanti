@@ -1712,28 +1712,49 @@ async function closePosition(positionId: number, mode: 'market' | 'limit' = 'mar
   positions.value = positions.value.filter(p => p.id !== positionId)
   if (chartMode.value === 'built') renderEntryLines()
 
+  // Optimistic UI Update: 즉시 수익률 카드 띄우기 (실시간 현재가 기준)
+  if (mode === 'market' && pos) {
+    const entryPrice = Number(pos.entry_price || 0)
+    const exitPrice = lastPrice.value || entryPrice
+    const qty = Number(pos.qty || 0)
+    const margin = Number(pos.margin || 0)
+    
+    let pnl = 0
+    if (pos.side === 'long') pnl = (exitPrice - entryPrice) * qty
+    else pnl = (entryPrice - exitPrice) * qty
+    
+    const roe = margin > 0 ? (pnl / margin) * 100 : 0
+    
+    closeSummary.value = {
+      symbol: String(pos.symbol),
+      side: pos.side === 'short' ? 'short' : 'long',
+      leverage: Number(pos.leverage || 1),
+      entryPrice,
+      exitPrice,
+      pnl,
+      roe,
+      wonText: Math.round(pnl * 1350).toLocaleString()
+    }
+  }
+
   try {
     const res = await $fetch<any>('/api/trade/close', { method: 'POST', body: { positionId } })
     tradeMsg.value = `청산 완료 · PnL ${res.pnl >= 0 ? '+' : ''}${Number(res.pnl).toFixed(2)} USDT`
     
-    if (mode === 'market' && pos) {
-      const pnl = Number(res.pnl || 0)
-      const roe = Number(pos.margin) > 0 ? (pnl / Number(pos.margin)) * 100 : 0
-      closeSummary.value = {
-        symbol: String(pos.symbol),
-        side: pos.side === 'short' ? 'short' : 'long',
-        leverage: Number(pos.leverage || 1),
-        entryPrice: Number(pos.entry_price || 0),
-        exitPrice: Number(res.exitPrice || 0),
-        pnl,
-        roe,
-        wonText: Math.round(pnl * 1350).toLocaleString()
-      }
+    // 서버가 정확한 최종 체결값을 응답하면 카드의 숫자를 살짝(정확하게) 보정
+    if (mode === 'market' && pos && closeSummary.value) {
+      const serverPnl = Number(res.pnl || 0)
+      const serverRoe = Number(pos.margin) > 0 ? (serverPnl / Number(pos.margin)) * 100 : 0
+      closeSummary.value.exitPrice = Number(res.exitPrice || 0)
+      closeSummary.value.pnl = serverPnl
+      closeSummary.value.roe = serverRoe
+      closeSummary.value.wonText = Math.round(serverPnl * 1350).toLocaleString()
     }
   } catch (e: any) {
     // 실패 시 낙관적 업데이트 롤백
     positions.value = originalPositions
     if (chartMode.value === 'built') renderEntryLines()
+    closeSummary.value = null // 에러 시 띄웠던 카드 회수
     error.value = e?.data?.statusMessage || '청산 실패'
   } finally {
     // 실제 서버 데이터 동기화
