@@ -45,6 +45,9 @@ export async function getUsersAndBalances() {
     username,
     role,
     created_at,
+    last_login_at,
+    last_login_ip,
+    last_seen_at,
     balances:anti_balances(usdt)
   `).order('id', { ascending: false })
   if (error) throw error
@@ -55,9 +58,56 @@ export async function getUsersAndBalances() {
       username: u.username,
       role: u.role,
       created_at: u.created_at,
+      last_login_at: u.last_login_at,
+      last_login_ip: u.last_login_ip,
+      last_seen_at: u.last_seen_at,
       usdt: balObj?.usdt ?? 0
     }
   })
+}
+
+export async function deleteDbUser(id: number) {
+  const supa = getSupabaseAdminClient()
+  // Since we don't have cascade delete configured on Supabase tables yet, manually delete related records
+  await supa.from('anti_balances').delete().eq('user_id', id)
+  await supa.from('anti_positions').delete().eq('user_id', id)
+  await supa.from('anti_trades').delete().eq('user_id', id)
+  await supa.from('anti_sessions').delete().eq('user_id', id)
+  
+  const { error } = await supa.from('anti_users').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function updateUserLoginStatus(id: number, ip: string) {
+  const supa = getSupabaseAdminClient()
+  const now = new Date().toISOString()
+  await supa.from('anti_users').update({ 
+    last_login_at: now, 
+    last_login_ip: ip,
+    last_seen_at: now
+  }).eq('id', id)
+}
+
+export async function updateHeartbeat(id: number) {
+  const supa = getSupabaseAdminClient()
+  await supa.from('anti_users').update({ last_seen_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function blockIp(ip: string, reason?: string) {
+  const supa = getSupabaseAdminClient()
+  const { error } = await supa.from('anti_blocked_ips').insert({ ip, reason, created_at: new Date().toISOString() })
+  if (error && error.code !== '23505') throw error // Ignore duplicate key if already blocked
+}
+
+export async function unblockIp(ip: string) {
+  const supa = getSupabaseAdminClient()
+  await supa.from('anti_blocked_ips').delete().eq('ip', ip)
+}
+
+export async function isIpBlocked(ip: string) {
+  const supa = getSupabaseAdminClient()
+  const { data } = await supa.from('anti_blocked_ips').select('ip').eq('ip', ip).maybeSingle()
+  return !!data
 }
 
 export async function createDbSession(token: string, userId: number, expiresAt: string) {

@@ -34,14 +34,32 @@
             <tr>
               <th class="py-3 px-2 font-semibold">ID</th>
               <th class="py-3 px-2 font-semibold">아이디</th>
+              <th class="py-3 px-2 font-semibold">최근 접속/IP</th>
+              <th class="py-3 px-2 font-semibold">상태</th>
               <th class="py-3 px-2 font-semibold">역할(권한 변경)</th>
               <th class="py-3 px-2 font-semibold">USDT 잔액 수정</th>
+              <th class="py-3 px-2 font-semibold text-right">계정 관리</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id" class="border-t border-white/5 hover:bg-white/5 transition">
               <td class="py-3 px-2 font-mono text-slate-400">{{ u.id }}</td>
               <td class="py-3 px-2 font-semibold text-slate-200">{{ u.username }}</td>
+              <td class="py-3 px-2 text-xs">
+                <div v-if="u.last_login_at" class="text-slate-300">{{ new Date(u.last_login_at).toLocaleString() }}</div>
+                <div v-else class="text-slate-500">기록 없음</div>
+                <div class="text-slate-400 mt-1">{{ u.last_login_ip || 'IP 없음' }}</div>
+              </td>
+              <td class="py-3 px-2">
+                <div v-if="isOnline(u.last_seen_at)" class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
+                  <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
+                  온라인
+                </div>
+                <div v-else class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 text-[11px] font-bold">
+                  <div class="w-1.5 h-1.5 rounded-full bg-slate-500"></div>
+                  오프라인
+                </div>
+              </td>
               <td class="py-3 px-2">
                 <select 
                   v-model="u.role" 
@@ -70,6 +88,10 @@
                   </button>
                 </div>
               </td>
+              <td class="py-3 px-2 text-right space-x-2 whitespace-nowrap">
+                <button v-if="u.last_login_ip" class="rounded bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 px-2 py-1 text-[11px] border border-rose-500/30 transition" @click="blockIp(u.last_login_ip)">IP 차단</button>
+                <button class="rounded bg-red-600 hover:bg-red-500 text-white px-2 py-1 text-[11px] font-bold transition shadow" @click="deleteUser(u.id, u.username)">삭제</button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -85,7 +107,16 @@ definePageMeta({ middleware: ['admin'] })
 const { me, refresh } = useMe()
 await refresh()
 
-type AdminUserRow = { id: number; username: string; role: string; usdt: number; created_at: string }
+type AdminUserRow = { 
+  id: number; 
+  username: string; 
+  role: string; 
+  usdt: number; 
+  created_at: string;
+  last_login_at?: string;
+  last_login_ip?: string;
+  last_seen_at?: string;
+}
 
 const users = ref<AdminUserRow[]>([])
 const loading = ref(false)
@@ -134,6 +165,48 @@ async function modifyBalance(userId: number) {
     error.value = e?.data?.statusMessage || '잔고 수정에 실패했습니다.'
   }
 }
+
+function isOnline(lastSeen?: string) {
+  if (!lastSeen) return false
+  const diff = Date.now() - new Date(lastSeen).getTime()
+  return diff < 3 * 60 * 1000 // 3분 이내면 온라인
+}
+
+async function blockIp(ip: string) {
+  if (!confirm(`해당 IP(${ip})를 정말 차단하시겠습니까?\n차단된 IP는 즉시 사이트 로그인이 불가능해집니다.`)) return
+  try {
+    await $fetch('/api/admin/users/block-ip', { method: 'POST', body: { ip, block: true } })
+    alert(`[${ip}] IP 차단이 완료되었습니다.`)
+  } catch (e: any) {
+    alert(e?.data?.statusMessage || 'IP 차단에 실패했습니다.')
+  }
+}
+
+async function deleteUser(id: number, username: string) {
+  if (username === 'admin') {
+    alert('최고 관리자 계정은 삭제할 수 없습니다.')
+    return
+  }
+  if (!confirm(`정말 유저 '${username}'을(를) 삭제하시겠습니까?\n가상 잔고 및 거래 내역 등 모든 관련 데이터가 영구히 삭제되며 복구할 수 없습니다.`)) return
+  try {
+    await $fetch('/api/admin/users/delete', { method: 'POST', body: { id } })
+    alert('삭제되었습니다.')
+    await load()
+  } catch (e: any) {
+    alert(e?.data?.statusMessage || '유저 삭제에 실패했습니다.')
+  }
+}
+
+let onlineTimer: any = null
+onMounted(() => {
+  onlineTimer = setInterval(() => {
+    // 1분마다 테이블 리렌더링 트리거하여 온라인 상태 실시간 반영
+    users.value = [...users.value]
+  }, 60000)
+})
+onUnmounted(() => {
+  if (onlineTimer) clearInterval(onlineTimer)
+})
 
 await load()
 </script>
