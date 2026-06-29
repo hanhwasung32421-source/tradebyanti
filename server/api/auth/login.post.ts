@@ -32,9 +32,14 @@ export default defineEventHandler(async (event) => {
 
   const user = await getDbUser(body.username)
 
-  if (!user || !verifyPassword(body.password, user.password_hash)) {
-    await logLogin(event, { userId: user?.id ?? null, username: body.username, area: 'main', success: false })
-    throw createError({ statusCode: 401, statusMessage: '아이디 또는 비밀번호가 올바르지 않습니다.' })
+  if (!user) {
+    await logLogin(event, { userId: null, username: body.username, area: 'main', success: false })
+    throw createError({ statusCode: 404, statusMessage: '존재하지 않는 아이디입니다.' })
+  }
+
+  if (!verifyPassword(body.password, user.password_hash)) {
+    await logLogin(event, { userId: user.id, username: body.username, area: 'main', success: false })
+    throw createError({ statusCode: 401, statusMessage: '비밀번호가 올바르지 않습니다.' })
   }
 
   // 로그인 성공 시 세션 생성 및 유저 상태(접속시간, IP) 업데이트
